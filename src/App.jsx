@@ -91,7 +91,7 @@ function HomePage({ setCurrentPage }) {
       </main>
 
       <footer>
-        <p>FFC MM - Canteens Management System © 2024</p>
+        <p>FFC MM - Canteens Management System © 2026</p>
       </footer>
     </div>
   );
