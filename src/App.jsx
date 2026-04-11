@@ -116,14 +116,20 @@ function ComplaintForm({ setCurrentPage }) {
     reader.readAsDataURL(file);
   });
 
-  const handleImageChange = async (e) => {
+const handleImageChange = async (e) => {
     const file = e.target.files[0];
-    if (file) setFormData(prev => ({ ...prev, imageUrl: await handleFileUpload(file) }));
+    if (file) {
+      const base64 = await handleFileUpload(file);
+      setFormData(prev => ({ ...prev, imageUrl: base64 }));
+    }
   };
 
   const handleVideoChange = async (e) => {
     const file = e.target.files[0];
-    if (file) setFormData(prev => ({ ...prev, videoUrl: await handleFileUpload(file) }));
+    if (file) {
+      const base64 = await handleFileUpload(file);
+      setFormData(prev => ({ ...prev, videoUrl: base64 }));
+    }
   };
 
   const handleSubmit = async (e) => {
