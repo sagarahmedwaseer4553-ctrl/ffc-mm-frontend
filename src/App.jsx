@@ -1,18 +1,16 @@
-// App.jsx - FFC MM Canteens — Fixed UI
+// App.jsx - FFC MM Canteens — Fully Fixed
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_URL        = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
-const PERMANENT_USER = 'kingsman';
-const PERMANENT_PIN  = '1920';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 export default function App() {
-  const [currentPage,         setCurrentPage]         = useState('home');
-  const [adminAuthenticated,  setAdminAuthenticated]  = useState(false);
-  const [isSuperAdmin,        setIsSuperAdmin]        = useState(false);
-  const [loggedInUser,        setLoggedInUser]        = useState('');
-  const [storedPin,           setStoredPin]           = useState('');
+  const [currentPage,        setCurrentPage]        = useState('home');
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false);
+  const [isSuperAdmin,       setIsSuperAdmin]       = useState(false);
+  const [loggedInUser,       setLoggedInUser]       = useState('');
+  const [storedPin,          setStoredPin]          = useState('');
 
   return (
     <div className="app">
@@ -104,7 +102,6 @@ function HomePage({ setCurrentPage }) {
           </div>
         </div>
 
-        {/* PUBLIC TRACKER */}
         <div className="tracker-section">
           <div className="tracker-header" onClick={loadComplaints}>
             <div>
@@ -121,9 +118,7 @@ function HomePage({ setCurrentPage }) {
                 <div className="tracker-empty">No complaints submitted yet.</div>
               ) : (
                 <ul className="tracker-list">
-                  {complaints.map(c => (
-                    <TrackerItem key={c._id} c={c} />
-                  ))}
+                  {complaints.map(c => <TrackerItem key={c._id} c={c} />)}
                 </ul>
               )}
             </div>
@@ -149,18 +144,18 @@ function TrackerItem({ c }) {
       {hasActions && (
         <div className="tracker-actions">
           {c.investigation && <span>📝 {c.investigation}</span>}
-          {c.fineAmount > 0 && <span> &nbsp;|&nbsp; 💰 Fine: PKR {c.fineAmount}</span>}
+          {c.fineAmount > 0 && <span> | 💰 Fine: PKR {c.fineAmount}</span>}
           {c.status === 'Under Investigation' && c.updatedAt && (
-            <span> &nbsp;|&nbsp; 🔍 Under investigation since {new Date(c.updatedAt).toLocaleDateString('en-GB')}</span>
+            <span> | 🔍 Under investigation since {new Date(c.updatedAt).toLocaleDateString('en-GB')}</span>
           )}
           {c.status === 'Closed' && c.updatedAt && (
-            <span> &nbsp;|&nbsp; 🔒 Closed on {new Date(c.updatedAt).toLocaleDateString('en-GB')}</span>
+            <span> | 🔒 Closed on {new Date(c.updatedAt).toLocaleDateString('en-GB')}</span>
           )}
           {c.status === 'Resolved' && c.updatedAt && (
-            <span> &nbsp;|&nbsp; ✅ Resolved on {new Date(c.updatedAt).toLocaleDateString('en-GB')}</span>
+            <span> | ✅ Resolved on {new Date(c.updatedAt).toLocaleDateString('en-GB')}</span>
           )}
           {c.remarks && c.remarks.length > 0 && (
-            <span> &nbsp;|&nbsp; 💬 {c.remarks[c.remarks.length - 1].text}</span>
+            <span> | 💬 {c.remarks[c.remarks.length - 1].text}</span>
           )}
         </div>
       )}
@@ -189,7 +184,7 @@ function ComplaintForm({ setCurrentPage }) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFileUpload = (file) => new Promise((resolve) => {
+  const toBase64 = (file) => new Promise((resolve) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result);
     r.readAsDataURL(file);
@@ -197,12 +192,12 @@ function ComplaintForm({ setCurrentPage }) {
 
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
-    if (file) { const b = await handleFileUpload(file); setFormData(p => ({ ...p, imageUrl: b })); }
+    if (file) { const b = await toBase64(file); setFormData(p => ({ ...p, imageUrl: b })); }
   };
 
   const handleVideoChange = async (e) => {
     const file = e.target.files[0];
-    if (file) { const b = await handleFileUpload(file); setFormData(p => ({ ...p, videoUrl: b })); }
+    if (file) { const b = await toBase64(file); setFormData(p => ({ ...p, videoUrl: b })); }
   };
 
   const handleSubmit = async (e) => {
@@ -311,38 +306,54 @@ function ComplaintForm({ setCurrentPage }) {
 // ADMIN LOGIN
 // ══════════════════════════════════════════════════════════
 function AdminLogin({ onAuthenticate, setCurrentPage }) {
-  const [mode,         setMode]         = useState('login');
-  const [username,     setUsername]     = useState('');
-  const [pin,          setPin]          = useState('');
-  const [loginError,   setLoginError]   = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
+  const [mode,        setMode]        = useState('login');
+  const [username,    setUsername]    = useState('');
+  const [pin,         setPin]         = useState('');
+  const [loginError,  setLoginError]  = useState('');
+  const [loginLoading,setLoginLoading]= useState(false);
 
-  const [otpSending,    setOtpSending]    = useState(false);
-  const [otpError,      setOtpError]      = useState('');
-  const [otp,           setOtp]           = useState('');
-  const [newPin,        setNewPin]        = useState('');
-  const [confirmPin,    setConfirmPin]    = useState('');
-  const [resetLoading,  setResetLoading]  = useState(false);
-  const [resetMsg,      setResetMsg]      = useState('');
-  const [resetError,    setResetError]    = useState('');
+  const [otpSending,  setOtpSending]  = useState(false);
+  const [otpError,    setOtpError]    = useState('');
+  const [otp,         setOtp]         = useState('');
+  const [newPin,      setNewPin]      = useState('');
+  const [confirmPin,  setConfirmPin]  = useState('');
+  const [resetLoading,setResetLoading]= useState(false);
+  const [resetMsg,    setResetMsg]    = useState('');
+  const [resetError,  setResetError]  = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoginError(''); setLoginLoading(true);
+    setLoginError('');
+    setLoginLoading(true);
+
+    const trimUser = username.trim();
+    const trimPin  = pin.trim();
+
+    if (!trimUser || trimPin.length < 4) {
+      setLoginError('❌ Enter username and PIN (min 4 digits).');
+      setLoginLoading(false);
+      return;
+    }
+
     try {
       const res = await axios.post(`${API_URL}/admin/verify-pin`, {
-        pin:      pin.trim(),
-        username: username.trim()
+        username: trimUser,
+        pin:      trimPin
       });
+
       if (res.data.success) {
-        const superAdmin = res.data.isSuperAdmin ||
-          (username.trim().toLowerCase() === PERMANENT_USER && pin.trim() === PERMANENT_PIN);
-        onAuthenticate(username.trim(), pin.trim(), superAdmin);
+        onAuthenticate(trimUser, trimPin, res.data.isSuperAdmin === true);
+      } else {
+        setLoginError('❌ Invalid username or PIN.');
+        setPin('');
       }
-    } catch {
-      setLoginError('❌ Invalid username or PIN. Please try again.');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Login failed. Please try again.';
+      setLoginError('❌ ' + msg);
       setPin('');
-    } finally { setLoginLoading(false); }
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
   const handleRequestOtp = async () => {
@@ -396,19 +407,45 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
       <div className="login-container">
         <div className="login-card">
 
+          {/* ── LOGIN MODE ── */}
           {mode === 'login' && (
             <>
               <div className="login-icon">🔐</div>
               <h2>Admin Access</h2>
-              <p>Enter your username and PIN to continue</p>
+              <p>Enter your username and PIN</p>
               {loginError && <div className="error-message">{loginError}</div>}
               <form onSubmit={handleLogin}>
-                <input type="text" placeholder="Username" value={username}
-                  onChange={e => setUsername(e.target.value)} required autoFocus
-                  style={{ textAlign: 'left', letterSpacing: 'normal', fontSize: 15, padding: '13px 15px' }} />
-                <input type="password" placeholder="PIN" maxLength="8" value={pin}
-                  onChange={e => setPin(e.target.value.replace(/\D/g, ''))} required />
-                <button type="submit" disabled={loginLoading || pin.length < 4 || !username.trim()}>
+                {/* Username — normal text input, NOT styled like PIN */}
+                <input
+                  type="text"
+                  placeholder="Username"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  required
+                  autoFocus
+                  autoComplete="username"
+                  style={{
+                    textAlign: 'left',
+                    letterSpacing: 'normal',
+                    fontSize: '15px',
+                    padding: '13px 16px',
+                    fontFamily: 'var(--ff-body)'
+                  }}
+                />
+                {/* PIN — digits only */}
+                <input
+                  type="password"
+                  placeholder="PIN (digits only)"
+                  maxLength="8"
+                  value={pin}
+                  onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="submit"
+                  disabled={loginLoading || pin.length < 4 || !username.trim()}
+                >
                   {loginLoading ? '⏳ Verifying...' : '🔓 Unlock'}
                 </button>
               </form>
@@ -418,6 +455,7 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
             </>
           )}
 
+          {/* ── FORGOT: REQUEST OTP ── */}
           {mode === 'forgot-request' && (
             <>
               <div className="login-icon">📧</div>
@@ -425,39 +463,55 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
               <p>A 6-digit code will be sent to:<br />
                 <strong>sagarahmedwaseer4553@gmail.com</strong></p>
               {otpError && <div className="error-message">{otpError}</div>}
-              <button className="submit-btn" onClick={handleRequestOtp}
-                disabled={otpSending} style={{ marginTop: 16 }}>
+              <button
+                className="submit-btn"
+                onClick={handleRequestOtp}
+                disabled={otpSending}
+                style={{ marginTop: 16 }}
+              >
                 {otpSending ? '⏳ Sending...' : '📨 Send Verification Code'}
               </button>
               <button className="forgot-pin-link" onClick={backToLogin}>← Back to Login</button>
             </>
           )}
 
+          {/* ── FORGOT: ENTER CODE + NEW PIN ── */}
           {mode === 'forgot-verify' && (
             <>
               <div className="login-icon">🔑</div>
               <h2>Verify & Reset</h2>
               <p>Code sent to <strong>sagarahmedwaseer4553@gmail.com</strong><br />
-                <small style={{ color: 'var(--text3)' }}>Valid 10 minutes. Check spam.</small></p>
+                <small style={{ color: 'var(--text3)' }}>Valid 10 minutes. Check spam.</small>
+              </p>
               {resetError && <div className="error-message">{resetError}</div>}
               {resetMsg   && <div className="success-message">{resetMsg}</div>}
               <form onSubmit={handleResetPin}>
-                <input type="text" placeholder="6-digit code" maxLength="6"
+                <input
+                  type="text" placeholder="6-digit code" maxLength="6"
                   value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-                  required autoFocus style={{ letterSpacing: 6, textAlign: 'center', fontSize: 20 }} />
-                <input type="password" placeholder="New PIN (min 4 digits)" maxLength="8"
-                  value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))} required />
-                <input type="password" placeholder="Confirm new PIN" maxLength="8"
-                  value={confirmPin} onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ''))} required />
-                <button type="submit" style={{ marginTop: 14 }}
-                  disabled={resetLoading || otp.length !== 6 || newPin.length < 4 || confirmPin.length < 4}>
+                  required autoFocus
+                  style={{ letterSpacing: 8, textAlign: 'center', fontSize: 22 }}
+                />
+                <input
+                  type="password" placeholder="New PIN (min 4 digits)" maxLength="8"
+                  value={newPin} onChange={e => setNewPin(e.target.value.replace(/\D/g, ''))} required
+                />
+                <input
+                  type="password" placeholder="Confirm new PIN" maxLength="8"
+                  value={confirmPin} onChange={e => setConfirmPin(e.target.value.replace(/\D/g, ''))} required
+                />
+                <button
+                  type="submit"
+                  style={{ marginTop: 14 }}
+                  disabled={resetLoading || otp.length !== 6 || newPin.length < 4 || confirmPin.length < 4}
+                >
                   {resetLoading ? '⏳ Updating...' : '✅ Update PIN'}
                 </button>
               </form>
-              <button className="forgot-pin-link"
-                onClick={() => { setMode('forgot-request'); setOtp(''); setNewPin(''); setConfirmPin(''); setResetError(''); }}>
-                ← Resend Code
-              </button>
+              <button
+                className="forgot-pin-link"
+                onClick={() => { setMode('forgot-request'); setOtp(''); setNewPin(''); setConfirmPin(''); setResetError(''); }}
+              >← Resend Code</button>
               <button className="forgot-pin-link" onClick={backToLogin} style={{ marginTop: 4 }}>
                 ← Back to Login
               </button>
@@ -471,7 +525,7 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
 }
 
 // ══════════════════════════════════════════════════════════
-// ADMIN DASHBOARD — fixed: passes adminPin in headers correctly
+// ADMIN DASHBOARD
 // ══════════════════════════════════════════════════════════
 function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, loggedInUser, adminPin }) {
   const [complaints,        setComplaints]        = useState([]);
@@ -484,82 +538,80 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
   const [showEmailConfig,   setShowEmailConfig]   = useState(false);
   const [showUserMgmt,      setShowUserMgmt]      = useState(false);
   const [newEmail,          setNewEmail]          = useState('');
-  const [error,             setError]             = useState('');
+  const [fetchError,        setFetchError]        = useState('');
 
   // User management
-  const [subUsers,     setSubUsers]     = useState([]);
-  const [newSubUser,   setNewSubUser]   = useState('');
-  const [newSubPin,    setNewSubPin]    = useState('');
-  const [otpStep,      setOtpStep]      = useState(false);
+  const [subUsers,      setSubUsers]      = useState([]);
+  const [newSubUser,    setNewSubUser]    = useState('');
+  const [newSubPin,     setNewSubPin]     = useState('');
+  const [otpStep,       setOtpStep]       = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
-  const [verifyOtp,    setVerifyOtp]    = useState('');
-  const [otpSending,   setOtpSending]   = useState(false);
-  const [userMsg,      setUserMsg]      = useState('');
-  const [userErr,      setUserErr]      = useState('');
+  const [verifyOtp,     setVerifyOtp]     = useState('');
+  const [otpSending,    setOtpSending]    = useState(false);
+  const [userMsg,       setUserMsg]       = useState('');
+  const [userErr,       setUserErr]       = useState('');
 
-  // Auth header used for ALL dashboard requests
-  const authHeaders = { adminpin: adminPin };
+  // All dashboard requests use adminPin in header
+  const H = { adminpin: adminPin };
 
-  useEffect(() => { fetchData(); }, []); // eslint-disable-line
+  useEffect(() => { fetchAll(); }, []); // eslint-disable-line
 
-  const fetchData = async () => {
-    setError('');
+  const fetchAll = async () => {
+    setFetchError('');
     try {
-      const [cRes, sRes, eRes] = await Promise.all([
-        axios.get(`${API_URL}/complaints`,          { headers: authHeaders }),
-        axios.get(`${API_URL}/admin/stats`,          { headers: authHeaders }),
-        axios.get(`${API_URL}/admin/email-config`,   { headers: authHeaders })
+      const [cR, sR, eR] = await Promise.all([
+        axios.get(`${API_URL}/complaints`,          { headers: H }),
+        axios.get(`${API_URL}/admin/stats`,          { headers: H }),
+        axios.get(`${API_URL}/admin/email-config`,   { headers: H })
       ]);
-      setComplaints(cRes.data);
-      setStats(sRes.data);
-      setEmailConfig(eRes.data);
+      setComplaints(cR.data);
+      setStats(sR.data);
+      setEmailConfig(eR.data);
     } catch (e) {
-      console.error('Fetch error:', e);
-      setError('Failed to load data. Your session may have expired.');
+      console.error('Dashboard fetch error:', e.response?.status, e.response?.data);
+      setFetchError(`Failed to load data (${e.response?.status || 'network error'}): ${e.response?.data?.error || e.message}`);
     } finally { setLoading(false); }
   };
 
-  // Load sub-users when user mgmt panel opens
   const loadSubUsers = async () => {
     try {
-      const res = await axios.get(`${API_URL}/admin/users?username=${loggedInUser}&pin=${adminPin}`);
+      const res = await axios.get(`${API_URL}/admin/users?username=${encodeURIComponent(loggedInUser)}&pin=${encodeURIComponent(adminPin)}`);
       setSubUsers(res.data);
-    } catch (e) { console.error('Load users error:', e); }
+    } catch (e) { console.error('Load users:', e.response?.data); }
   };
 
-  const handleUpdateComplaint = async (id, updates) => {
+  const updateComplaint = async (id, updates) => {
     try {
-      await axios.put(`${API_URL}/complaints/${id}`, updates, { headers: authHeaders });
-      fetchData(); setSelectedComplaint(null);
+      await axios.put(`${API_URL}/complaints/${id}`, updates, { headers: H });
+      fetchAll(); setSelectedComplaint(null);
     } catch (e) { console.error('Update error:', e); }
   };
 
-  const handleDeleteComplaint = async (id) => {
+  const deleteComplaint = async (id) => {
     if (!window.confirm('Delete this complaint permanently?')) return;
     try {
-      await axios.delete(`${API_URL}/complaints/${id}`, { headers: authHeaders });
-      fetchData();
+      await axios.delete(`${API_URL}/complaints/${id}`, { headers: H });
+      fetchAll();
     } catch (e) { console.error('Delete error:', e); }
   };
 
-  const handleAddEmail = async () => {
+  const addEmail = async () => {
     if (!newEmail || emailConfig.recipients.includes(newEmail)) return;
     const updated = { ...emailConfig, recipients: [...emailConfig.recipients, newEmail] };
     try {
-      await axios.put(`${API_URL}/admin/email-config`, updated, { headers: authHeaders });
+      await axios.put(`${API_URL}/admin/email-config`, updated, { headers: H });
       setEmailConfig(updated); setNewEmail('');
-    } catch (e) { console.error('Email config error:', e); }
+    } catch (e) { console.error('Add email error:', e); }
   };
 
-  const handleRemoveEmail = async (email) => {
+  const removeEmail = async (email) => {
     const updated = { ...emailConfig, recipients: emailConfig.recipients.filter(e => e !== email) };
     try {
-      await axios.put(`${API_URL}/admin/email-config`, updated, { headers: authHeaders });
+      await axios.put(`${API_URL}/admin/email-config`, updated, { headers: H });
       setEmailConfig(updated);
-    } catch (e) { console.error('Email remove error:', e); }
+    } catch (e) { console.error('Remove email error:', e); }
   };
 
-  // Request OTP then perform user management action
   const startUserAction = async (action) => {
     setUserErr(''); setOtpSending(true);
     try {
@@ -573,115 +625,90 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
     if (verifyOtp.length !== 6) { setUserErr('Enter valid 6-digit code'); return; }
     setUserErr('');
     try {
-      // Verify OTP
       await axios.post(`${API_URL}/admin/verify-otp`, { otp: verifyOtp });
-
       if (pendingAction.type === 'add') {
         await axios.post(`${API_URL}/admin/users`, {
-          username:    loggedInUser,
-          pin:         adminPin,
-          newUsername: pendingAction.newUsername,
-          newPin:      pendingAction.newPin
+          username: loggedInUser, pin: adminPin,
+          newUsername: pendingAction.newUsername, newPin: pendingAction.newPin
         });
-        setUserMsg(`✅ User "${pendingAction.newUsername}" added successfully!`);
+        setUserMsg(`✅ User "${pendingAction.newUsername}" added!`);
         setNewSubUser(''); setNewSubPin('');
-        await loadSubUsers();
-      } else if (pendingAction.type === 'remove') {
+      } else {
         await axios.delete(`${API_URL}/admin/users/${pendingAction.targetUsername}`, {
           data: { username: loggedInUser, pin: adminPin }
         });
         setUserMsg(`✅ User "${pendingAction.targetUsername}" removed.`);
-        await loadSubUsers();
       }
+      await loadSubUsers();
       setOtpStep(false); setPendingAction(null); setVerifyOtp('');
       setTimeout(() => setUserMsg(''), 4000);
-    } catch (e) {
-      setUserErr(e.response?.data?.error || 'Invalid or expired code');
-    }
+    } catch (e) { setUserErr(e.response?.data?.error || 'Invalid or expired code'); }
   };
 
-  const getFiltered = () => complaints.filter(c => {
-    const sm = filter === 'All'        || c.status  === filter;
-    const cm = canteenFilter === 'All' || c.canteen === canteenFilter;
-    return sm && cm;
-  });
+  const filtered = () => complaints.filter(c =>
+    (filter === 'All' || c.status === filter) &&
+    (canteenFilter === 'All' || c.canteen === canteenFilter)
+  );
 
-  const handleLogout = () => {
-    setAdminAuthenticated(false); setCurrentPage('home');
-  };
-
-  const generateReport = (complaint) => {
+  const generateReport = (c) => {
     const w = window.open('', '', 'height=650,width=860');
-    const actionDate = (complaint.status === 'Closed' || complaint.status === 'Under Investigation')
-      ? (complaint.updatedAt ? new Date(complaint.updatedAt).toLocaleDateString('en-GB') : 'N/A') : null;
-    const resolvedDate = complaint.resolvedAt
-      ? new Date(complaint.resolvedAt).toLocaleDateString('en-GB') : null;
+    const actionDate = (c.status === 'Closed' || c.status === 'Under Investigation') && c.updatedAt
+      ? new Date(c.updatedAt).toLocaleDateString('en-GB') : null;
+    const resolvedDate = c.resolvedAt ? new Date(c.resolvedAt).toLocaleDateString('en-GB') : null;
 
-    w.document.write(`<!DOCTYPE html><html><head><title>Complaint Report — FFC MM</title>
+    w.document.write(`<!DOCTYPE html><html><head><title>Complaint Report</title>
     <style>
       body{font-family:Arial,sans-serif;margin:36px;color:#1a1008}
       h2{color:#a83030;margin-bottom:4px;font-size:22px}
-      .subtitle{color:#9a7a60;font-size:13px;margin-bottom:22px}
+      .sub{color:#9a7a60;font-size:13px;margin-bottom:22px}
       table{width:100%;border-collapse:collapse;margin:18px 0}
       th,td{border:1px solid #ddd;padding:10px 13px;text-align:left;font-size:13px}
       th{background:#a83030;color:#fff;font-weight:700}
       tr:nth-child(even){background:#fdf8f3}
       .box{background:#fdf3dc;border:1px solid #c8960a;border-radius:6px;padding:14px 16px;margin:14px 0}
-      .box h4{color:#a87c08;margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.5px}
-      .sig-wrap{margin-top:50px;display:flex;justify-content:flex-end;page-break-inside:avoid}
-      .sig-block{text-align:center;width:260px}
-      .sig-line{border-top:1.5px solid #1a1008;padding-top:8px;font-size:13px;font-weight:700;color:#1a1008}
-      .sig-title{font-size:12px;color:#5a3e2b;margin-top:4px}
-      .no-print button{margin:4px}
-      @media print{.no-print{display:none}}
+      .box h4{color:#a87c08;margin:0 0 8px;font-size:13px;text-transform:uppercase}
+      .sig{margin-top:50px;display:flex;justify-content:flex-end}
+      .sig-b{text-align:center;width:260px}
+      .sig-l{border-top:1.5px solid #1a1008;padding-top:8px;font-size:13px;font-weight:700}
+      .sig-t{font-size:12px;color:#5a3e2b;margin-top:4px}
+      .np button{margin:4px}
+      @media print{.np{display:none}}
     </style></head><body>
     <h2>🏭 FFC MM Canteens — Complaint Report</h2>
-    <div class="subtitle">Generated: ${new Date().toLocaleString('en-GB')}</div>
+    <div class="sub">Generated: ${new Date().toLocaleString('en-GB')}</div>
     <table>
       <tr><th>Field</th><th>Details</th></tr>
-      <tr><td><b>Full Name</b></td><td>${complaint.fullName}</td></tr>
-      <tr><td><b>P. No</b></td><td>${complaint.personalNumber}</td></tr>
-      <tr><td><b>Designation</b></td><td>${complaint.designation}</td></tr>
-      <tr><td><b>Department</b></td><td>${complaint.department}</td></tr>
-      <tr><td><b>Mobile</b></td><td>${complaint.mobileNumber}</td></tr>
-      <tr><td><b>Canteen</b></td><td>${complaint.canteen}</td></tr>
-      <tr><td><b>Status</b></td><td>${complaint.status}</td></tr>
-      <tr><td><b>Fine Amount</b></td><td>${complaint.fineAmount > 0 ? 'PKR ' + complaint.fineAmount : 'N/A'}</td></tr>
-      <tr><td><b>Submitted</b></td><td>${new Date(complaint.submittedAt).toLocaleString('en-GB')}</td></tr>
-      ${actionDate ? `<tr><td><b>${complaint.status === 'Closed' ? 'Date Closed' : 'Investigation Started'}</b></td><td>${actionDate}</td></tr>` : ''}
+      <tr><td><b>Full Name</b></td><td>${c.fullName}</td></tr>
+      <tr><td><b>P. No</b></td><td>${c.personalNumber}</td></tr>
+      <tr><td><b>Designation</b></td><td>${c.designation}</td></tr>
+      <tr><td><b>Department</b></td><td>${c.department}</td></tr>
+      <tr><td><b>Mobile</b></td><td>${c.mobileNumber}</td></tr>
+      <tr><td><b>Canteen</b></td><td>${c.canteen}</td></tr>
+      <tr><td><b>Status</b></td><td>${c.status}</td></tr>
+      <tr><td><b>Fine Amount</b></td><td>${c.fineAmount > 0 ? 'PKR ' + c.fineAmount : 'N/A'}</td></tr>
+      <tr><td><b>Submitted</b></td><td>${new Date(c.submittedAt).toLocaleString('en-GB')}</td></tr>
+      ${actionDate ? `<tr><td><b>${c.status === 'Closed' ? 'Date Closed' : 'Investigation Started'}</b></td><td>${actionDate}</td></tr>` : ''}
       ${resolvedDate ? `<tr><td><b>Date Resolved</b></td><td>${resolvedDate}</td></tr>` : ''}
-      <tr><td colspan="2"><b>Complaint Details:</b><br/><br/>${complaint.complaintDetails.replace(/\n/g, '<br/>')}</td></tr>
+      <tr><td colspan="2"><b>Complaint Details:</b><br/><br/>${c.complaintDetails.replace(/\n/g, '<br/>')}</td></tr>
     </table>
-    ${complaint.investigation ? `
-      <div class="box">
-        <h4>🔍 Investigation / Admin Actions</h4>
-        <p>${complaint.investigation}</p>
+    ${c.investigation ? `<div class="box"><h4>🔍 Investigation / Admin Actions</h4><p>${c.investigation}</p></div>` : ''}
+    ${c.remarks && c.remarks.length > 0 ? `
+      <div class="box"><h4>💬 Remarks History</h4>
+      ${c.remarks.map(r => `<p>• ${r.text} <em style="color:#9a7a60;font-size:12px">(${new Date(r.addedAt).toLocaleString('en-GB')})</em></p>`).join('')}
       </div>` : ''}
-    ${complaint.remarks && complaint.remarks.length > 0 ? `
-      <div class="box">
-        <h4>💬 Remarks History</h4>
-        ${complaint.remarks.map(r =>
-          `<p>• ${r.text} <em style="color:#9a7a60;font-size:12px">(${new Date(r.addedAt).toLocaleString('en-GB')})</em></p>`
-        ).join('')}
-      </div>` : ''}
-    <div class="sig-wrap">
-      <div class="sig-block">
-        <div style="height:50px"></div>
-        <div class="sig-line">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-        <div class="sig-title">Chairman Canteen Committee</div>
-      </div>
-    </div>
-    <div class="no-print" style="margin-top:24px">
+    <div class="sig"><div class="sig-b">
+      <div style="height:50px"></div>
+      <div class="sig-l">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+      <div class="sig-t">Chairman Canteen Committee</div>
+    </div></div>
+    <div class="np" style="margin-top:24px">
       <button onclick="window.print()"
         style="background:#a83030;color:#fff;border:none;padding:10px 22px;border-radius:6px;cursor:pointer;font-size:14px">
-        🖨️ Print Report
-      </button>
+        🖨️ Print Report</button>
       <button onclick="window.close()"
         style="background:#f0ede8;color:#1a1008;border:1px solid #ddd;padding:10px 22px;border-radius:6px;cursor:pointer;font-size:14px;margin-left:8px">
-        Close
-      </button>
-    </div>
-    </body></html>`);
+        Close</button>
+    </div></body></html>`);
     w.document.close();
   };
 
@@ -706,23 +733,33 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
                 <button onClick={() => setShowEmailConfig(v => !v)} className="config-btn">📧 Email</button>
               </>
             )}
-            <button onClick={handleLogout} className="logout-btn">🔓 Logout</button>
+            <button onClick={() => { setAdminAuthenticated(false); setCurrentPage('home'); }} className="logout-btn">
+              🔓 Logout
+            </button>
           </div>
         </div>
       </header>
 
       <main className="dashboard-content">
 
-        {error && <div className="error-message" style={{ marginBottom: 20 }}>{error}</div>}
+        {fetchError && (
+          <div className="error-message" style={{ marginBottom: 20 }}>
+            {fetchError}
+            <button onClick={fetchAll}
+              style={{ marginLeft: 12, padding: '4px 12px', background: 'var(--red)', color: '#fff',
+                       border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* USER MANAGEMENT */}
         {isSuperAdmin && showUserMgmt && (
           <div className="user-mgmt-panel">
             <h3>👥 User Management</h3>
-            <p>Add or remove admin users. Each action requires email verification sent to sagarahmedwaseer4553@gmail.com</p>
+            <p>Add or remove admin users. Each action requires Gmail verification.</p>
             {userMsg && <div className="success-message">{userMsg}</div>}
             {userErr && <div className="error-message">{userErr}</div>}
-
             {otpStep ? (
               <div style={{ marginTop: 14 }}>
                 <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 10 }}>
@@ -733,9 +770,8 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
                     value={verifyOtp} onChange={e => setVerifyOtp(e.target.value.replace(/\D/g, ''))}
                     style={{ flex: 1, minWidth: 140, letterSpacing: 6, textAlign: 'center', fontSize: 18 }} />
                   <button onClick={confirmUserAction}
-                    style={{ padding: '0 20px', background: 'var(--red)', color: '#fff',
-                             border: 'none', borderRadius: 9, cursor: 'pointer',
-                             fontWeight: 700, fontSize: 13, minHeight: 44 }}>
+                    style={{ padding: '0 20px', background: 'var(--red)', color: '#fff', border: 'none',
+                             borderRadius: 9, cursor: 'pointer', fontWeight: 700, fontSize: 13, minHeight: 44 }}>
                     ✅ Confirm
                   </button>
                   <button onClick={() => { setOtpStep(false); setPendingAction(null); setVerifyOtp(''); }}
@@ -758,13 +794,10 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
                       <span className="user-item-name">{u.username}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span className="user-item-role">Admin</span>
-                        <button
-                          onClick={() => startUserAction({ type: 'remove', targetUsername: u.username })}
+                        <button onClick={() => startUserAction({ type: 'remove', targetUsername: u.username })}
                           disabled={otpSending}
                           style={{ background: 'none', border: 'none', color: 'var(--danger)',
-                                   cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>
-                          ✕
-                        </button>
+                                   cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>✕</button>
                       </div>
                     </li>
                   ))}
@@ -777,17 +810,16 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
                 <div className="add-user-row">
                   <input type="text" placeholder="New username"
                     value={newSubUser} onChange={e => setNewSubUser(e.target.value)} />
-                  <input type="password" placeholder="PIN (digits only)"
+                  <input type="password" placeholder="PIN (min 4 digits)"
                     value={newSubPin} onChange={e => setNewSubPin(e.target.value.replace(/\D/g, ''))} maxLength="8" />
-                  <button
+                  <button disabled={otpSending}
                     onClick={() => {
                       if (!newSubUser.trim() || newSubPin.length < 4) {
                         setUserErr('Enter username and PIN (min 4 digits)'); return;
                       }
                       setUserErr('');
                       startUserAction({ type: 'add', newUsername: newSubUser.trim(), newPin: newSubPin });
-                    }}
-                    disabled={otpSending}>
+                    }}>
                     {otpSending ? '⏳' : '+ Add User'}
                   </button>
                 </div>
@@ -804,7 +836,7 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
             <div className="email-input-group">
               <input type="email" placeholder="admin@example.com"
                 value={newEmail} onChange={e => setNewEmail(e.target.value)} />
-              <button onClick={handleAddEmail}>Add Email</button>
+              <button onClick={addEmail}>Add Email</button>
             </div>
             <div className="email-list">
               <h4>Recipients ({emailConfig.recipients.length}):</h4>
@@ -813,7 +845,7 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
                 : emailConfig.recipients.map((email, i) => (
                   <div key={i} className="email-item">
                     <span>✉️ {email}</span>
-                    <button onClick={() => handleRemoveEmail(email)}>✕</button>
+                    <button onClick={() => removeEmail(email)}>✕</button>
                   </div>
                 ))
               }
@@ -860,28 +892,23 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
           </select>
         </div>
 
-        {/* COMPLAINTS TABLE */}
+        {/* TABLE */}
         <div className="complaints-table">
-          <h3>Complaints ({getFiltered().length})</h3>
+          <h3>Complaints ({filtered().length})</h3>
           <div style={{ overflowX: 'auto' }}>
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>P. No</th>
-                  <th>Canteen</th>
-                  <th>Status</th>
-                  <th>Fine (PKR)</th>
-                  <th>Submitted</th>
-                  <th>Actions</th>
+                  <th>Name</th><th>P. No</th><th>Canteen</th>
+                  <th>Status</th><th>Fine (PKR)</th><th>Submitted</th><th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {getFiltered().length === 0 ? (
+                {filtered().length === 0 ? (
                   <tr><td colSpan="7" style={{ textAlign: 'center', padding: 32, color: 'var(--text3)' }}>
                     No complaints found
                   </td></tr>
-                ) : getFiltered().map(c => (
+                ) : filtered().map(c => (
                   <tr key={c._id}>
                     <td>{c.fullName}</td>
                     <td style={{ fontFamily: 'var(--ff-mono)', fontSize: 12 }}>{c.personalNumber}</td>
@@ -895,7 +922,7 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
                     <td style={{ fontSize: 12 }}>{new Date(c.submittedAt).toLocaleDateString('en-GB')}</td>
                     <td>
                       <button onClick={() => setSelectedComplaint(c)}>View</button>
-                      <button className="btn-delete" onClick={() => handleDeleteComplaint(c._id)}>🗑</button>
+                      <button className="btn-delete" onClick={() => deleteComplaint(c._id)}>🗑</button>
                     </td>
                   </tr>
                 ))}
@@ -907,7 +934,7 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
         {selectedComplaint && (
           <ComplaintDetail
             complaint={selectedComplaint}
-            onUpdate={handleUpdateComplaint}
+            onUpdate={updateComplaint}
             onClose={() => setSelectedComplaint(null)}
             onPrint={generateReport}
           />
@@ -925,15 +952,6 @@ function ComplaintDetail({ complaint, onUpdate, onClose, onPrint }) {
   const [remarks,       setRemarks]       = useState('');
   const [fineAmount,    setFineAmount]    = useState(complaint.fineAmount || 0);
   const [investigation, setInvestigation] = useState(complaint.investigation || '');
-
-  const handleSave = () => {
-    onUpdate(complaint._id, {
-      status,
-      remarks:       remarks || undefined,
-      fineAmount:    parseFloat(fineAmount) || 0,
-      investigation
-    });
-  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -962,6 +980,7 @@ function ComplaintDetail({ complaint, onUpdate, onClose, onPrint }) {
 
         <div className="detail-section">
           <h4>Admin Actions</h4>
+
           <label>Status</label>
           <select value={status} onChange={e => setStatus(e.target.value)}>
             <option value="New">New</option>
@@ -997,9 +1016,17 @@ function ComplaintDetail({ complaint, onUpdate, onClose, onPrint }) {
         </div>
 
         <div className="modal-buttons">
-          <button onClick={handleSave} className="save-btn">💾 Save Changes</button>
-          <button onClick={() => onPrint(complaint)} className="print-btn">🖨️ Print Report</button>
-          <button onClick={onClose} className="cancel-btn">Cancel</button>
+          <button className="save-btn"
+            onClick={() => onUpdate(complaint._id, {
+              status,
+              remarks:       remarks || undefined,
+              fineAmount:    parseFloat(fineAmount) || 0,
+              investigation
+            })}>
+            💾 Save Changes
+          </button>
+          <button className="print-btn" onClick={() => onPrint(complaint)}>🖨️ Print Report</button>
+          <button className="cancel-btn" onClick={onClose}>Cancel</button>
         </div>
       </div>
     </div>
