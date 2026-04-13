@@ -3,7 +3,18 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// ─── CRITICAL FIX ────────────────────────────────────────────────────────────
+// Netlify env var REACT_APP_API_URL is set to "https://canteens-backend.netlify.app/"
+// (trailing slash, NO /api suffix).  Blindly doing `${API_URL}/complaints`
+// was producing "https://canteens-backend.netlify.app//complaints"  ← double
+// slash + missing /api → every request hit a 404/network error, causing:
+//   • "Login failed. Please try again."  (network error, not auth error)
+//   • Complaints tracker always shows "No complaints submitted yet."
+//
+// Fix: strip all trailing slashes, then always append /api exactly once.
+// ─────────────────────────────────────────────────────────────────────────────
+const _base = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+const API_URL = _base.endsWith('/api') ? _base : `${_base}/api`;
 
 export default function App() {
   const [currentPage,        setCurrentPage]        = useState('home');
@@ -52,16 +63,25 @@ function HomePage({ setCurrentPage }) {
   const [showTracker,    setShowTracker]    = useState(false);
   const [complaints,     setComplaints]     = useState([]);
   const [trackerLoading, setTrackerLoading] = useState(false);
+  const [trackerError,   setTrackerError]   = useState('');
 
   const loadComplaints = async () => {
-    if (showTracker) { setShowTracker(false); return; }
+    if (showTracker) { setShowTracker(false); setTrackerError(''); return; }
     setTrackerLoading(true);
+    setTrackerError('');
     try {
       const res = await axios.get(`${API_URL}/complaints`);
       setComplaints(res.data);
       setShowTracker(true);
-    } catch { setShowTracker(true); }
-    finally { setTrackerLoading(false); }
+    } catch (err) {
+      // Show tracker panel with a meaningful error instead of silently showing "no complaints"
+      console.error('Tracker fetch error:', err);
+      setTrackerError('⚠️ Could not load complaints. Please check your connection and try again.');
+      setComplaints([]);
+      setShowTracker(true);
+    } finally {
+      setTrackerLoading(false);
+    }
   };
 
   return (
@@ -114,7 +134,9 @@ function HomePage({ setCurrentPage }) {
           </div>
           {showTracker && (
             <div className="tracker-body">
-              {complaints.length === 0 ? (
+              {trackerError ? (
+                <div className="tracker-empty" style={{ color: 'var(--danger)' }}>{trackerError}</div>
+              ) : complaints.length === 0 ? (
                 <div className="tracker-empty">No complaints submitted yet.</div>
               ) : (
                 <ul className="tracker-list">
