@@ -1,9 +1,16 @@
-// App.jsx - FFC MM Canteens — Fully Fixed
-import React, { useState, useEffect } from 'react';
+// App.jsx - FFC MM Canteens — Fixed Version
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './App.css';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// REACT_APP_API_URL = https://canteens-backend.netlify.app
+// So API calls go to https://canteens-backend.netlify.app/api/...
+// which the backend netlify.toml redirects to /.netlify/functions/api/...
+const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+const API_URL  = `${API_BASE}/api`;
+
+// Axios instance — no default auth header; admin calls add it per-request
+const api = axios.create({ baseURL: API_URL });
 
 export default function App() {
   const [currentPage,        setCurrentPage]        = useState('home');
@@ -52,16 +59,23 @@ function HomePage({ setCurrentPage }) {
   const [showTracker,    setShowTracker]    = useState(false);
   const [complaints,     setComplaints]     = useState([]);
   const [trackerLoading, setTrackerLoading] = useState(false);
+  const [trackerError,   setTrackerError]   = useState('');
 
   const loadComplaints = async () => {
     if (showTracker) { setShowTracker(false); return; }
     setTrackerLoading(true);
+    setTrackerError('');
     try {
-      const res = await axios.get(`${API_URL}/complaints`);
-      setComplaints(res.data);
+      const res = await api.get('/complaints');
+      setComplaints(Array.isArray(res.data) ? res.data : []);
       setShowTracker(true);
-    } catch { setShowTracker(true); }
-    finally { setTrackerLoading(false); }
+    } catch (e) {
+      console.error('Tracker load error:', e);
+      setTrackerError('Failed to load complaints. Please try again.');
+      setShowTracker(true);
+    } finally {
+      setTrackerLoading(false);
+    }
   };
 
   return (
@@ -114,10 +128,12 @@ function HomePage({ setCurrentPage }) {
           </div>
           {showTracker && (
             <div className="tracker-body">
-              {complaints.length === 0 ? (
+              {trackerError ? (
+                <div className="tracker-empty" style={{ color: 'var(--danger)' }}>{trackerError}</div>
+              ) : complaints.length === 0 ? (
                 <div className="tracker-empty">No complaints submitted yet.</div>
               ) : (
-                <ul className="tracker-list">
+                <ul className="tracker-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                   {complaints.map(c => <TrackerItem key={c._id} c={c} />)}
                 </ul>
               )}
@@ -184,33 +200,49 @@ function ComplaintForm({ setCurrentPage }) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const toBase64 = (file) => new Promise((resolve) => {
+  const toBase64 = (file) => new Promise((resolve, reject) => {
     const r = new FileReader();
-    r.onload = () => resolve(r.result);
+    r.onload  = () => resolve(r.result);
+    r.onerror = () => reject(new Error('File read failed'));
     r.readAsDataURL(file);
   });
 
   const handleImageChange = async (e) => {
     const file = e.target.files[0];
-    if (file) { const b = await toBase64(file); setFormData(p => ({ ...p, imageUrl: b })); }
+    if (!file) return;
+    try {
+      const b = await toBase64(file);
+      setFormData(p => ({ ...p, imageUrl: b }));
+    } catch (e) { console.error('Image read error:', e); }
   };
 
   const handleVideoChange = async (e) => {
     const file = e.target.files[0];
-    if (file) { const b = await toBase64(file); setFormData(p => ({ ...p, videoUrl: b })); }
+    if (!file) return;
+    try {
+      const b = await toBase64(file);
+      setFormData(p => ({ ...p, videoUrl: b }));
+    } catch (e) { console.error('Video read error:', e); }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true); setMessage('');
     try {
-      await axios.post(`${API_URL}/complaints`, formData);
+      await api.post('/complaints', formData);
       setMessage('✅ Complaint submitted successfully! Thank you for reporting.');
-      setFormData({ fullName: '', personalNumber: '', designation: '', department: '',
-        mobileNumber: '', complaintDetails: '', canteen: 'Plant Canteen', imageUrl: '', videoUrl: '' });
-      setTimeout(() => setCurrentPage('home'), 2000);
-    } catch { setMessage('❌ Error submitting complaint. Please try again.'); }
-    finally { setLoading(false); }
+      setFormData({
+        fullName: '', personalNumber: '', designation: '', department: '',
+        mobileNumber: '', complaintDetails: '', canteen: 'Plant Canteen',
+        imageUrl: '', videoUrl: ''
+      });
+      setTimeout(() => setCurrentPage('home'), 2500);
+    } catch (err) {
+      const errMsg = err.response?.data?.error || 'Network error. Please check your connection.';
+      setMessage('❌ Error: ' + errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -306,20 +338,20 @@ function ComplaintForm({ setCurrentPage }) {
 // ADMIN LOGIN
 // ══════════════════════════════════════════════════════════
 function AdminLogin({ onAuthenticate, setCurrentPage }) {
-  const [mode,        setMode]        = useState('login');
-  const [username,    setUsername]    = useState('');
-  const [pin,         setPin]         = useState('');
-  const [loginError,  setLoginError]  = useState('');
-  const [loginLoading,setLoginLoading]= useState(false);
+  const [mode,         setMode]         = useState('login');
+  const [username,     setUsername]     = useState('');
+  const [pin,          setPin]          = useState('');
+  const [loginError,   setLoginError]   = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
 
-  const [otpSending,  setOtpSending]  = useState(false);
-  const [otpError,    setOtpError]    = useState('');
-  const [otp,         setOtp]         = useState('');
-  const [newPin,      setNewPin]      = useState('');
-  const [confirmPin,  setConfirmPin]  = useState('');
-  const [resetLoading,setResetLoading]= useState(false);
-  const [resetMsg,    setResetMsg]    = useState('');
-  const [resetError,  setResetError]  = useState('');
+  const [otpSending,   setOtpSending]   = useState(false);
+  const [otpError,     setOtpError]     = useState('');
+  const [otp,          setOtp]          = useState('');
+  const [newPin,       setNewPin]       = useState('');
+  const [confirmPin,   setConfirmPin]   = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg,     setResetMsg]     = useState('');
+  const [resetError,   setResetError]   = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -329,14 +361,19 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
     const trimUser = username.trim();
     const trimPin  = pin.trim();
 
-    if (!trimUser || trimPin.length < 4) {
-      setLoginError('❌ Enter username and PIN (min 4 digits).');
+    if (!trimUser) {
+      setLoginError('❌ Please enter your username.');
+      setLoginLoading(false);
+      return;
+    }
+    if (trimPin.length < 4) {
+      setLoginError('❌ PIN must be at least 4 digits.');
       setLoginLoading(false);
       return;
     }
 
     try {
-      const res = await axios.post(`${API_URL}/admin/verify-pin`, {
+      const res = await api.post('/admin/verify-pin', {
         username: trimUser,
         pin:      trimPin
       });
@@ -359,7 +396,7 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
   const handleRequestOtp = async () => {
     setOtpError(''); setOtpSending(true);
     try {
-      await axios.post(`${API_URL}/admin/forgot-pin`);
+      await api.post('/admin/forgot-pin');
       setMode('forgot-verify');
     } catch (err) {
       setOtpError(err.response?.data?.error || '❌ Failed to send code. Check email settings.');
@@ -372,7 +409,7 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
     if (newPin.length < 4)    { setResetError('❌ PIN must be at least 4 digits.'); return; }
     setResetLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/admin/reset-pin`, { otp, newPin });
+      const res = await api.post('/admin/reset-pin', { otp, newPin });
       if (res.data.success) {
         setResetMsg('✅ PIN updated! Login with your new PIN.');
         setTimeout(() => {
@@ -415,7 +452,6 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
               <p>Enter your username and PIN</p>
               {loginError && <div className="error-message">{loginError}</div>}
               <form onSubmit={handleLogin}>
-                {/* Username — normal text input, NOT styled like PIN */}
                 <input
                   type="text"
                   placeholder="Username"
@@ -432,7 +468,6 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
                     fontFamily: 'var(--ff-body)'
                   }}
                 />
-                {/* PIN — digits only */}
                 <input
                   type="password"
                   placeholder="PIN (digits only)"
@@ -481,7 +516,7 @@ function AdminLogin({ onAuthenticate, setCurrentPage }) {
               <div className="login-icon">🔑</div>
               <h2>Verify & Reset</h2>
               <p>Code sent to <strong>sagarahmedwaseer4553@gmail.com</strong><br />
-                <small style={{ color: 'var(--text3)' }}>Valid 10 minutes. Check spam.</small>
+                <small style={{ color: 'var(--text3)' }}>Valid 10 minutes. Check spam folder.</small>
               </p>
               {resetError && <div className="error-message">{resetError}</div>}
               {resetMsg   && <div className="success-message">{resetMsg}</div>}
@@ -551,55 +586,74 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
   const [userMsg,       setUserMsg]       = useState('');
   const [userErr,       setUserErr]       = useState('');
 
-  // All dashboard requests use adminPin in header
-  const H = { adminpin: adminPin };
+  // Auth headers for admin requests
+  const authHeaders = { adminpin: adminPin };
 
-  useEffect(() => { fetchAll(); }, []); // eslint-disable-line
-
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setFetchError('');
     try {
       const [cR, sR, eR] = await Promise.all([
-        axios.get(`${API_URL}/complaints`,          { headers: H }),
-        axios.get(`${API_URL}/admin/stats`,          { headers: H }),
-        axios.get(`${API_URL}/admin/email-config`,   { headers: H })
+        api.get('/complaints',        { headers: authHeaders }),
+        api.get('/admin/stats',        { headers: authHeaders }),
+        api.get('/admin/email-config', { headers: authHeaders })
       ]);
-      setComplaints(cR.data);
+      setComplaints(Array.isArray(cR.data) ? cR.data : []);
       setStats(sR.data);
       setEmailConfig(eR.data);
     } catch (e) {
       console.error('Dashboard fetch error:', e.response?.status, e.response?.data);
-      setFetchError(`Failed to load data (${e.response?.status || 'network error'}): ${e.response?.data?.error || e.message}`);
-    } finally { setLoading(false); }
-  };
+      const status = e.response?.status;
+      const msg    = e.response?.data?.error || e.message;
+      if (status === 401) {
+        setFetchError('❌ Authentication failed (401). Your session may have expired. Please logout and login again.');
+      } else {
+        setFetchError(`Failed to load data (${status || 'network error'}): ${msg}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [adminPin]); // eslint-disable-line
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const loadSubUsers = async () => {
     try {
-      const res = await axios.get(`${API_URL}/admin/users?username=${encodeURIComponent(loggedInUser)}&pin=${encodeURIComponent(adminPin)}`);
-      setSubUsers(res.data);
-    } catch (e) { console.error('Load users:', e.response?.data); }
+      const res = await api.get(
+        `/admin/users?username=${encodeURIComponent(loggedInUser)}&pin=${encodeURIComponent(adminPin)}`
+      );
+      setSubUsers(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      console.error('Load users error:', e.response?.data);
+    }
   };
 
   const updateComplaint = async (id, updates) => {
     try {
-      await axios.put(`${API_URL}/complaints/${id}`, updates, { headers: H });
-      fetchAll(); setSelectedComplaint(null);
-    } catch (e) { console.error('Update error:', e); }
+      await api.put(`/complaints/${id}`, updates, { headers: authHeaders });
+      await fetchAll();
+      setSelectedComplaint(null);
+    } catch (e) {
+      console.error('Update error:', e.response?.data || e.message);
+      alert('Update failed: ' + (e.response?.data?.error || e.message));
+    }
   };
 
   const deleteComplaint = async (id) => {
     if (!window.confirm('Delete this complaint permanently?')) return;
     try {
-      await axios.delete(`${API_URL}/complaints/${id}`, { headers: H });
-      fetchAll();
-    } catch (e) { console.error('Delete error:', e); }
+      await api.delete(`/complaints/${id}`, { headers: authHeaders });
+      await fetchAll();
+    } catch (e) {
+      console.error('Delete error:', e.response?.data || e.message);
+      alert('Delete failed: ' + (e.response?.data?.error || e.message));
+    }
   };
 
   const addEmail = async () => {
     if (!newEmail || emailConfig.recipients.includes(newEmail)) return;
     const updated = { ...emailConfig, recipients: [...emailConfig.recipients, newEmail] };
     try {
-      await axios.put(`${API_URL}/admin/email-config`, updated, { headers: H });
+      await api.put('/admin/email-config', updated, { headers: authHeaders });
       setEmailConfig(updated); setNewEmail('');
     } catch (e) { console.error('Add email error:', e); }
   };
@@ -607,7 +661,7 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
   const removeEmail = async (email) => {
     const updated = { ...emailConfig, recipients: emailConfig.recipients.filter(e => e !== email) };
     try {
-      await axios.put(`${API_URL}/admin/email-config`, updated, { headers: H });
+      await api.put('/admin/email-config', updated, { headers: authHeaders });
       setEmailConfig(updated);
     } catch (e) { console.error('Remove email error:', e); }
   };
@@ -615,26 +669,29 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
   const startUserAction = async (action) => {
     setUserErr(''); setOtpSending(true);
     try {
-      await axios.post(`${API_URL}/admin/forgot-pin`);
+      await api.post('/admin/forgot-pin');
       setPendingAction(action); setOtpStep(true);
-    } catch { setUserErr('Failed to send verification code'); }
-    finally { setOtpSending(false); }
+    } catch (e) {
+      setUserErr('Failed to send verification code: ' + (e.response?.data?.error || e.message));
+    } finally { setOtpSending(false); }
   };
 
   const confirmUserAction = async () => {
     if (verifyOtp.length !== 6) { setUserErr('Enter valid 6-digit code'); return; }
     setUserErr('');
     try {
-      await axios.post(`${API_URL}/admin/verify-otp`, { otp: verifyOtp });
+      await api.post('/admin/verify-otp', { otp: verifyOtp });
       if (pendingAction.type === 'add') {
-        await axios.post(`${API_URL}/admin/users`, {
-          username: loggedInUser, pin: adminPin,
-          newUsername: pendingAction.newUsername, newPin: pendingAction.newPin
+        await api.post('/admin/users', {
+          username:    loggedInUser,
+          pin:         adminPin,
+          newUsername: pendingAction.newUsername,
+          newPin:      pendingAction.newPin
         });
         setUserMsg(`✅ User "${pendingAction.newUsername}" added!`);
         setNewSubUser(''); setNewSubPin('');
       } else {
-        await axios.delete(`${API_URL}/admin/users/${pendingAction.targetUsername}`, {
+        await api.delete(`/admin/users/${pendingAction.targetUsername}`, {
           data: { username: loggedInUser, pin: adminPin }
         });
         setUserMsg(`✅ User "${pendingAction.targetUsername}" removed.`);
@@ -642,7 +699,9 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
       await loadSubUsers();
       setOtpStep(false); setPendingAction(null); setVerifyOtp('');
       setTimeout(() => setUserMsg(''), 4000);
-    } catch (e) { setUserErr(e.response?.data?.error || 'Invalid or expired code'); }
+    } catch (e) {
+      setUserErr(e.response?.data?.error || 'Invalid or expired code');
+    }
   };
 
   const filtered = () => complaints.filter(c =>
@@ -728,13 +787,15 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
           <div className="navbar-buttons">
             {isSuperAdmin && (
               <>
-                <button onClick={() => { setShowUserMgmt(v => !v); if (!showUserMgmt) loadSubUsers(); }}
+                <button
+                  onClick={() => { setShowUserMgmt(v => !v); if (!showUserMgmt) loadSubUsers(); }}
                   className="config-btn">👥 Users</button>
                 <button onClick={() => setShowEmailConfig(v => !v)} className="config-btn">📧 Email</button>
               </>
             )}
-            <button onClick={() => { setAdminAuthenticated(false); setCurrentPage('home'); }} className="logout-btn">
-              🔓 Logout
+            <button
+              onClick={() => { setAdminAuthenticated(false); setCurrentPage('home'); }}
+              className="logout-btn">🔓 Logout
             </button>
           </div>
         </div>
@@ -745,7 +806,8 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
         {fetchError && (
           <div className="error-message" style={{ marginBottom: 20 }}>
             {fetchError}
-            <button onClick={fetchAll}
+            <button
+              onClick={fetchAll}
               style={{ marginLeft: 12, padding: '4px 12px', background: 'var(--red)', color: '#fff',
                        border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
               Retry
@@ -794,7 +856,8 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
                       <span className="user-item-name">{u.username}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span className="user-item-role">Admin</span>
-                        <button onClick={() => startUserAction({ type: 'remove', targetUsername: u.username })}
+                        <button
+                          onClick={() => startUserAction({ type: 'remove', targetUsername: u.username })}
                           disabled={otpSending}
                           style={{ background: 'none', border: 'none', color: 'var(--danger)',
                                    cursor: 'pointer', fontSize: 16, padding: '0 4px' }}>✕</button>
@@ -811,8 +874,10 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
                   <input type="text" placeholder="New username"
                     value={newSubUser} onChange={e => setNewSubUser(e.target.value)} />
                   <input type="password" placeholder="PIN (min 4 digits)"
-                    value={newSubPin} onChange={e => setNewSubPin(e.target.value.replace(/\D/g, ''))} maxLength="8" />
-                  <button disabled={otpSending}
+                    value={newSubPin}
+                    onChange={e => setNewSubPin(e.target.value.replace(/\D/g, ''))} maxLength="8" />
+                  <button
+                    disabled={otpSending}
                     onClick={() => {
                       if (!newSubUser.trim() || newSubPin.length < 4) {
                         setUserErr('Enter username and PIN (min 4 digits)'); return;
@@ -835,12 +900,13 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
             <p>Add email addresses to receive complaint notifications</p>
             <div className="email-input-group">
               <input type="email" placeholder="admin@example.com"
-                value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+                value={newEmail} onChange={e => setNewEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addEmail()} />
               <button onClick={addEmail}>Add Email</button>
             </div>
             <div className="email-list">
-              <h4>Recipients ({emailConfig.recipients.length}):</h4>
-              {emailConfig.recipients.length === 0
+              <h4>Recipients ({emailConfig.recipients ? emailConfig.recipients.length : 0}):</h4>
+              {!emailConfig.recipients || emailConfig.recipients.length === 0
                 ? <p style={{ fontSize: 13, color: 'var(--text3)' }}>No emails configured</p>
                 : emailConfig.recipients.map((email, i) => (
                   <div key={i} className="email-item">
@@ -890,6 +956,12 @@ function AdminDashboard({ setCurrentPage, setAdminAuthenticated, isSuperAdmin, l
             <option value="Plant Canteen">Plant Canteen</option>
             <option value="Staff Hostel-II Canteen">Staff Hostel-II Canteen</option>
           </select>
+          <button onClick={fetchAll}
+            style={{ padding: '9px 16px', background: 'var(--gold-light)', color: 'var(--gold2)',
+                     border: '1.5px solid rgba(200,150,10,.3)', borderRadius: 10, cursor: 'pointer',
+                     fontWeight: 700, fontSize: 13, fontFamily: 'var(--ff-body)' }}>
+            🔄 Refresh
+          </button>
         </div>
 
         {/* TABLE */}
@@ -952,6 +1024,18 @@ function ComplaintDetail({ complaint, onUpdate, onClose, onPrint }) {
   const [remarks,       setRemarks]       = useState('');
   const [fineAmount,    setFineAmount]    = useState(complaint.fineAmount || 0);
   const [investigation, setInvestigation] = useState(complaint.investigation || '');
+  const [saving,        setSaving]        = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onUpdate(complaint._id, {
+      status,
+      remarks:       remarks.trim() || undefined,
+      fineAmount:    parseFloat(fineAmount) || 0,
+      investigation: investigation.trim()
+    });
+    setSaving(false);
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -976,7 +1060,31 @@ function ComplaintDetail({ complaint, onUpdate, onClose, onPrint }) {
           {complaint.updatedAt && (
             <p><strong>Last Updated:</strong> {new Date(complaint.updatedAt).toLocaleString('en-GB')}</p>
           )}
+          {complaint.resolvedAt && (
+            <p><strong>Resolved:</strong> {new Date(complaint.resolvedAt).toLocaleString('en-GB')}</p>
+          )}
         </div>
+
+        {/* Media attachments */}
+        {(complaint.imageUrl || complaint.videoUrl) && (
+          <div className="detail-section">
+            <h4>Attached Media</h4>
+            {complaint.imageUrl && (
+              <div style={{ marginBottom: 10 }}>
+                <p style={{ marginBottom: 6 }}><strong>📷 Image:</strong></p>
+                <img src={complaint.imageUrl} alt="Complaint attachment"
+                  style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
+              </div>
+            )}
+            {complaint.videoUrl && (
+              <div>
+                <p style={{ marginBottom: 6 }}><strong>🎥 Video:</strong></p>
+                <video src={complaint.videoUrl} controls
+                  style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)' }} />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="detail-section">
           <h4>Admin Actions</h4>
@@ -992,7 +1100,7 @@ function ComplaintDetail({ complaint, onUpdate, onClose, onPrint }) {
 
           <label>Fine Amount (PKR)</label>
           <input type="number" value={fineAmount}
-            onChange={e => setFineAmount(e.target.value)} min="0" />
+            onChange={e => setFineAmount(e.target.value)} min="0" step="1" />
 
           <label>Investigation Details</label>
           <textarea value={investigation} onChange={e => setInvestigation(e.target.value)}
@@ -1016,14 +1124,8 @@ function ComplaintDetail({ complaint, onUpdate, onClose, onPrint }) {
         </div>
 
         <div className="modal-buttons">
-          <button className="save-btn"
-            onClick={() => onUpdate(complaint._id, {
-              status,
-              remarks:       remarks || undefined,
-              fineAmount:    parseFloat(fineAmount) || 0,
-              investigation
-            })}>
-            💾 Save Changes
+          <button className="save-btn" onClick={handleSave} disabled={saving}>
+            {saving ? '⏳ Saving...' : '💾 Save Changes'}
           </button>
           <button className="print-btn" onClick={() => onPrint(complaint)}>🖨️ Print Report</button>
           <button className="cancel-btn" onClick={onClose}>Cancel</button>
