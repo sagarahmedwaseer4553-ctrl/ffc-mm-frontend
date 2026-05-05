@@ -38,6 +38,13 @@ const DEFAULT_MENU = {
   ],
 };
 
+// ── Default Contact Strip Data ───────────────────────────
+const DEFAULT_CONTACTS = [
+  { name:'Ahmad Naveed',  number:'03461113920' },
+  { name:'Ahmad Maqsood', number:'03044467651' },
+  { name:'Iqbal Naeem',   number:'Committee'   },
+];
+
 // ── Meal card colors by meal type ────────────────────────
 const MEAL_COLORS = {
   Breakfast: { bg:'#fff8e8', border:'#f0c040', icon:'#e8a000', label:'#b07800', dot:'#f0c040' },
@@ -55,7 +62,7 @@ export default function App() {
   const [loggedPin,  setLoggedPin]  = useState('');
   const [menuData,   setMenuData]   = useState(DEFAULT_MENU);
 
-  // Load saved menu from localStorage on startup
+  // Load saved menu + contacts from localStorage on startup
   useEffect(() => {
     try {
       const saved = localStorage.getItem('ffcmm_menu');
@@ -72,6 +79,9 @@ export default function App() {
     <div className="app">
       {page === 'home' && (
         <HomePage setPage={setPage} menuData={menuData} />
+      )}
+      {page === 'complaint' && (
+        <ComplaintForm setPage={setPage} />
       )}
       {page === 'admin' && !auth && (
         <AdminLogin
@@ -136,6 +146,7 @@ function HomePage({ setPage, menuData }) {
       </div>
 
       {tab === 'complaint' && <ComplaintTab setPage={setPage} />}
+
       {tab === 'menu'      && <MenuTab menuData={menuData} />}
 
       <footer><p>FFC MM — Canteen Complaint Management System © 2026</p></footer>
@@ -248,6 +259,7 @@ const CANTEEN_THEMES = {
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
 function MenuTab({ menuData }) {
+  const contacts = menuData.__contacts || DEFAULT_CONTACTS;
   const [selectedCanteen, setSelectedCanteen] = useState('Plant Canteen');
   const [activeDay,       setActiveDay]       = useState(0);
   const theme   = CANTEEN_THEMES[selectedCanteen];
@@ -334,10 +346,10 @@ function MenuTab({ menuData }) {
       <div className="menu-footer" style={{ background: theme.light, borderColor: theme.accent + '30' }}>
         <p style={{ color:'#666', fontSize:13 }}>Menu prepared by the Canteen Committee. For changes or suggestions, contact:</p>
         <div className="menu-contacts">
-          {[['Ahmad Naveed','03461113920'],['Ahmad Maqsood','03044467651'],['Iqbal Naeem','Committee']].map(([name,num])=>(
-            <div key={name} className="menu-contact-chip" style={{ borderColor: theme.accent + '40', color: theme.accent }}>
-              <span style={{ color:'#888', fontSize:11, display:'block' }}>{name}</span>
-              {num}
+          {contacts.map((c, i) => (
+            <div key={i} className="menu-contact-chip" style={{ borderColor: theme.accent + '40', color: theme.accent }}>
+              <span style={{ color:'#888', fontSize:11, display:'block' }}>{c.name}</span>
+              {c.number}
             </div>
           ))}
         </div>
@@ -827,16 +839,20 @@ function MenuEditor({ menuData, saveMenu }) {
   const [editDay,     setEditDay]     = useState(0);
   const [editMeal,    setEditMeal]    = useState(0);
   const [saved,       setSaved]       = useState(false);
+  const [editSection, setEditSection] = useState('menu'); // 'menu' | 'contacts'
+
+  const contacts = menuData.__contacts || DEFAULT_CONTACTS;
 
   const dayData  = menuData[editCanteen]?.[editDay];
   const mealData = dayData?.meals?.[editMeal];
+
+  const flash = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
 
   const updateItems = (value) => {
     const newMenu = JSON.parse(JSON.stringify(menuData));
     newMenu[editCanteen][editDay].meals[editMeal].items = value.split('\n').map(s=>s.trim()).filter(Boolean);
     saveMenu(newMenu);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    flash();
   };
 
   const updateTime = (value) => {
@@ -845,11 +861,33 @@ function MenuEditor({ menuData, saveMenu }) {
     saveMenu(newMenu);
   };
 
+  const updateContact = (index, field, value) => {
+    const newMenu = JSON.parse(JSON.stringify(menuData));
+    const updated = [...contacts];
+    updated[index] = { ...updated[index], [field]: value };
+    newMenu.__contacts = updated;
+    saveMenu(newMenu);
+  };
+
+  const addContact = () => {
+    const newMenu = JSON.parse(JSON.stringify(menuData));
+    newMenu.__contacts = [...contacts, { name: '', number: '' }];
+    saveMenu(newMenu);
+  };
+
+  const removeContact = (index) => {
+    const newMenu = JSON.parse(JSON.stringify(menuData));
+    newMenu.__contacts = contacts.filter((_, i) => i !== index);
+    saveMenu(newMenu);
+    flash();
+  };
+
   const resetToDefault = () => {
-    if (!window.confirm('Reset ALL menus to default? This cannot be undone.')) return;
-    saveMenu(DEFAULT_MENU);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    if (!window.confirm('Reset ALL menus and contacts to default? This cannot be undone.')) return;
+    const fresh = JSON.parse(JSON.stringify(DEFAULT_MENU));
+    fresh.__contacts = JSON.parse(JSON.stringify(DEFAULT_CONTACTS));
+    saveMenu(fresh);
+    flash();
   };
 
   return (
@@ -857,7 +895,7 @@ function MenuEditor({ menuData, saveMenu }) {
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12,marginBottom:16}}>
         <div>
           <h3 style={{fontFamily:'var(--ff-head)',fontSize:17,fontWeight:700,color:'var(--text)',marginBottom:4}}>🍽️ Menu Editor</h3>
-          <p style={{fontSize:13,color:'var(--text2)'}}>Edit what's served each day at each canteen</p>
+          <p style={{fontSize:13,color:'var(--text2)'}}>Edit menu items or contact strip shown to all users</p>
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           {saved && <span style={{fontSize:13,color:'var(--success)',fontWeight:700}}>✅ Saved!</span>}
@@ -865,65 +903,124 @@ function MenuEditor({ menuData, saveMenu }) {
         </div>
       </div>
 
-      {/* Canteen selector */}
-      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
-        {CANTEENS.map(c => (
-          <button key={c} onClick={()=>{setEditCanteen(c);setEditDay(0);setEditMeal(0);}}
-            style={{padding:'7px 16px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontWeight:700,fontSize:12,fontFamily:'var(--ff-body)',
-              background: editCanteen===c ? '#333' : 'var(--bg4)',
-              color: editCanteen===c ? '#fff' : 'var(--text2)',
-              borderColor: editCanteen===c ? '#333' : 'var(--border2)'}}>
-            {c}
+      {/* Section toggle */}
+      <div style={{display:'flex',gap:6,marginBottom:18,background:'var(--bg2)',padding:4,borderRadius:10,width:'fit-content'}}>
+        {[['menu','🍽️ Menu Items'],['contacts','📞 Contacts']].map(([key,label])=>(
+          <button key={key} onClick={()=>setEditSection(key)}
+            style={{padding:'7px 18px',borderRadius:8,border:'none',cursor:'pointer',fontSize:13,fontWeight:700,fontFamily:'var(--ff-body)',transition:'all .18s',
+              background: editSection===key ? 'var(--bg3)' : 'transparent',
+              color: editSection===key ? 'var(--red2)' : 'var(--text3)',
+              boxShadow: editSection===key ? '0 1px 6px rgba(0,0,0,.08)' : 'none'}}>
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Day selector */}
-      <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
-        {DAYS.map((d,i) => (
-          <button key={d} onClick={()=>{setEditDay(i);setEditMeal(0);}}
-            style={{padding:'5px 12px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontSize:12,fontFamily:'var(--ff-body)',
-              background: editDay===i ? 'var(--gold)' : 'var(--bg4)',
-              color: editDay===i ? '#fff' : 'var(--text2)',
-              borderColor: editDay===i ? 'var(--gold)' : 'var(--border)'}}>
-            {d.slice(0,3)}
-          </button>
-        ))}
-      </div>
+      {editSection === 'menu' && (<>
+        {/* Canteen selector */}
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
+          {CANTEENS.map(c => (
+            <button key={c} onClick={()=>{setEditCanteen(c);setEditDay(0);setEditMeal(0);}}
+              style={{padding:'7px 16px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontWeight:700,fontSize:12,fontFamily:'var(--ff-body)',
+                background: editCanteen===c ? '#333' : 'var(--bg4)',
+                color: editCanteen===c ? '#fff' : 'var(--text2)',
+                borderColor: editCanteen===c ? '#333' : 'var(--border2)'}}>
+              {c}
+            </button>
+          ))}
+        </div>
 
-      {/* Meal selector */}
-      <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:18}}>
-        {(dayData?.meals||[]).map((m,i) => (
-          <button key={i} onClick={()=>setEditMeal(i)}
-            style={{padding:'5px 14px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontSize:12,fontFamily:'var(--ff-body)',
-              background: editMeal===i ? 'var(--red)' : 'var(--bg4)',
-              color: editMeal===i ? '#fff' : 'var(--text2)',
-              borderColor: editMeal===i ? 'var(--red)' : 'var(--border)'}}>
-            {m.icon} {m.label}
-          </button>
-        ))}
-      </div>
+        {/* Day selector */}
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
+          {DAYS.map((d,i) => (
+            <button key={d} onClick={()=>{setEditDay(i);setEditMeal(0);}}
+              style={{padding:'5px 12px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontSize:12,fontFamily:'var(--ff-body)',
+                background: editDay===i ? 'var(--gold)' : 'var(--bg4)',
+                color: editDay===i ? '#fff' : 'var(--text2)',
+                borderColor: editDay===i ? 'var(--gold)' : 'var(--border)'}}>
+              {d.slice(0,3)}
+            </button>
+          ))}
+        </div>
 
-      {mealData && (
-        <div style={{background:'var(--bg4)',border:'1.5px solid var(--border)',borderRadius:12,padding:'16px 18px'}}>
-          <div style={{fontSize:11,fontWeight:700,color:'var(--red2)',letterSpacing:'.6px',textTransform:'uppercase',marginBottom:10}}>
-            Editing: {editCanteen} → {dayData.day} → {mealData.icon} {mealData.label}
+        {/* Meal selector */}
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:18}}>
+          {(dayData?.meals||[]).map((m,i) => (
+            <button key={i} onClick={()=>setEditMeal(i)}
+              style={{padding:'5px 14px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontSize:12,fontFamily:'var(--ff-body)',
+                background: editMeal===i ? 'var(--red)' : 'var(--bg4)',
+                color: editMeal===i ? '#fff' : 'var(--text2)',
+                borderColor: editMeal===i ? 'var(--red)' : 'var(--border)'}}>
+              {m.icon} {m.label}
+            </button>
+          ))}
+        </div>
+
+        {mealData && (
+          <div style={{background:'var(--bg4)',border:'1.5px solid var(--border)',borderRadius:12,padding:'16px 18px'}}>
+            <div style={{fontSize:11,fontWeight:700,color:'var(--red2)',letterSpacing:'.6px',textTransform:'uppercase',marginBottom:10}}>
+              Editing: {editCanteen} → {dayData.day} → {mealData.icon} {mealData.label}
+            </div>
+            <div style={{marginBottom:12}}>
+              <label style={{fontSize:11,fontWeight:700,color:'var(--text2)',display:'block',marginBottom:5}}>SERVING TIME</label>
+              <input type="text" value={mealData.time} onChange={e=>updateTime(e.target.value)}
+                style={{width:'100%',padding:'9px 13px',borderRadius:9,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)'}} />
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:'var(--text2)',display:'block',marginBottom:5}}>MENU ITEMS (one per line)</label>
+              <textarea
+                value={mealData.items.join('\n')}
+                onChange={e=>updateItems(e.target.value)}
+                rows={Math.max(4, mealData.items.length + 1)}
+                style={{width:'100%',padding:'10px 13px',borderRadius:9,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)',resize:'vertical',lineHeight:1.7}}
+              />
+              <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>Changes save automatically as you type</div>
+            </div>
           </div>
-          <div style={{marginBottom:12}}>
-            <label style={{fontSize:11,fontWeight:700,color:'var(--text2)',display:'block',marginBottom:5}}>SERVING TIME</label>
-            <input type="text" value={mealData.time} onChange={e=>updateTime(e.target.value)}
-              style={{width:'100%',padding:'9px 13px',borderRadius:9,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)'}} />
+        )}
+      </>)}
+
+      {editSection === 'contacts' && (
+        <div>
+          <p style={{fontSize:13,color:'var(--text2)',marginBottom:14}}>
+            Edit the contact chips shown at the bottom of the Weekly Menu tab.
+          </p>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {contacts.map((c, i) => (
+              <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:8,alignItems:'center',background:'var(--bg4)',border:'1.5px solid var(--border)',borderRadius:10,padding:'10px 12px'}}>
+                <div>
+                  <div style={{fontSize:10,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:4}}>Name</div>
+                  <input
+                    type="text"
+                    value={c.name}
+                    onChange={e => updateContact(i, 'name', e.target.value)}
+                    placeholder="Contact name"
+                    style={{width:'100%',padding:'8px 11px',borderRadius:8,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)'}}
+                  />
+                </div>
+                <div>
+                  <div style={{fontSize:10,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:4}}>Number / Role</div>
+                  <input
+                    type="text"
+                    value={c.number}
+                    onChange={e => updateContact(i, 'number', e.target.value)}
+                    placeholder="e.g. 03001234567"
+                    style={{width:'100%',padding:'8px 11px',borderRadius:8,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)'}}
+                  />
+                </div>
+                <button
+                  onClick={() => removeContact(i)}
+                  title="Remove contact"
+                  style={{alignSelf:'flex-end',background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:18,padding:'8px 4px',lineHeight:1,marginBottom:1}}
+                >✕</button>
+              </div>
+            ))}
           </div>
-          <div>
-            <label style={{fontSize:11,fontWeight:700,color:'var(--text2)',display:'block',marginBottom:5}}>MENU ITEMS (one per line)</label>
-            <textarea
-              value={mealData.items.join('\n')}
-              onChange={e=>updateItems(e.target.value)}
-              rows={Math.max(4, mealData.items.length + 1)}
-              style={{width:'100%',padding:'10px 13px',borderRadius:9,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)',resize:'vertical',lineHeight:1.7}}
-            />
-            <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>Changes save automatically as you type</div>
-          </div>
+          <button
+            onClick={addContact}
+            style={{marginTop:12,padding:'9px 20px',background:'var(--gold-light)',color:'var(--gold2)',border:'1.5px solid rgba(200,150,10,.3)',borderRadius:9,cursor:'pointer',fontWeight:700,fontSize:13,fontFamily:'var(--ff-body)',transition:'all .18s'}}
+          >+ Add Contact</button>
+          <div style={{fontSize:11,color:'var(--text3)',marginTop:8}}>Changes save automatically as you type</div>
         </div>
       )}
     </div>
