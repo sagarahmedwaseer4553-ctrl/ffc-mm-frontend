@@ -183,12 +183,16 @@ function ComplaintForm({ setPage }) {
   const [form, setForm] = useState({
     fullName: '', personalNumber: '', designation: '', department: '',
     mobileNumber: '', complaintDetails: '', canteen: 'Plant Canteen',
-    imageUrl: '', videoUrl: ''
+    imageUrl: ''
   });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [loading,    setLoading]    = useState(false);
+  const [message,    setMessage]    = useState('');
+  const [imgError,   setImgError]   = useState('');
+  const [imgPreview, setImgPreview] = useState('');
 
   const onChange = (e) => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
+
+  const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
 
   const toB64 = (file) => new Promise((res, rej) => {
     const r = new FileReader();
@@ -199,17 +203,25 @@ function ComplaintForm({ setPage }) {
 
   const onImage = async (e) => {
     const f = e.target.files[0];
-    if (f) try { setForm(p => ({ ...p, imageUrl: '' })); const b = await toB64(f); setForm(p => ({ ...p, imageUrl: b })); }
-    catch (e) { console.error(e); }
-  };
-  const onVideo = async (e) => {
-    const f = e.target.files[0];
-    if (f) try { const b = await toB64(f); setForm(p => ({ ...p, videoUrl: b })); }
-    catch (e) { console.error(e); }
+    if (!f) return;
+    setImgError('');
+    if (f.size > MAX_IMAGE_BYTES) {
+      setImgError('❌ Image too large. Maximum size is 2 MB.');
+      e.target.value = '';
+      setForm(p => ({ ...p, imageUrl: '' }));
+      setImgPreview('');
+      return;
+    }
+    try {
+      const b = await toB64(f);
+      setForm(p => ({ ...p, imageUrl: b }));
+      setImgPreview(b);
+    } catch (err) { console.error(err); }
   };
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (imgError) return;
     setLoading(true); setMessage('');
     try {
       await api.post('/complaints', form);
@@ -217,8 +229,9 @@ function ComplaintForm({ setPage }) {
       setForm({
         fullName: '', personalNumber: '', designation: '', department: '',
         mobileNumber: '', complaintDetails: '', canteen: 'Plant Canteen',
-        imageUrl: '', videoUrl: ''
+        imageUrl: ''
       });
+      setImgPreview('');
       setTimeout(() => setPage('home'), 2500);
     } catch (err) {
       setMessage('❌ ' + (err.response?.data?.error || 'Submission failed. Please try again.'));
@@ -295,17 +308,26 @@ function ComplaintForm({ setPage }) {
               <textarea name="complaintDetails" placeholder="Describe the issue in detail..."
                 value={form.complaintDetails} onChange={onChange} rows="5" required />
             </div>
-            <div className="form-row">
-              <div className="form-section">
-                <label>Upload Picture (Optional)</label>
-                <input type="file" accept="image/*" onChange={onImage} />
-              </div>
-              <div className="form-section">
-                <label>Upload Video (Optional)</label>
-                <input type="file" accept="video/*" onChange={onVideo} />
-              </div>
+            <div className="form-section">
+              <label>Upload Picture (Optional — max 2 MB)</label>
+              <input type="file" accept="image/*" onChange={onImage} />
+              {imgError && (
+                <div style={{ color:'var(--danger)', fontSize:13, marginTop:5, fontWeight:700 }}>
+                  {imgError}
+                </div>
+              )}
+              {imgPreview && !imgError && (
+                <div style={{ marginTop:8 }}>
+                  <img src={imgPreview} alt="Preview"
+                    style={{ maxWidth:'100%', maxHeight:180, borderRadius:8,
+                             border:'1.5px solid var(--border)', objectFit:'contain' }} />
+                  <div style={{ fontSize:12, color:'var(--success)', marginTop:4 }}>
+                    ✅ Image ready to submit
+                  </div>
+                </div>
+              )}
             </div>
-            <button type="submit" className="submit-btn" disabled={loading}>
+            <button type="submit" className="submit-btn" disabled={loading || !!imgError}>
               {loading ? '⏳ Submitting...' : '📨 Submit Complaint'}
             </button>
           </form>
@@ -884,12 +906,27 @@ function AdminDashboard({ setPage, setAuth, superAdmin, loggedUser, adminPin }) 
 // ══════════════════════════════════════════════════════
 // COMPLAINT DETAIL MODAL
 // ══════════════════════════════════════════════════════
-function ComplaintDetail({ complaint: c, onUpdate, onClose, onPrint }) {
-  const [status,  setStatus]  = useState(c.status);
+function ComplaintDetail({ complaint: initial, onUpdate, onClose, onPrint, adminPin }) {
+  // We start with the list data (no imageUrl) and immediately fetch
+  // the full record so the image is available.
+  const [full,    setFull]    = useState(initial);
+  const [status,  setStatus]  = useState(initial.status);
   const [remarks, setRemarks] = useState('');
-  const [fine,    setFine]    = useState(c.fineAmount || 0);
-  const [invest,  setInvest]  = useState(c.investigation || '');
+  const [fine,    setFine]    = useState(initial.fineAmount || 0);
+  const [invest,  setInvest]  = useState(initial.investigation || '');
   const [saving,  setSaving]  = useState(false);
+  const [imgLoad, setImgLoad] = useState(true); // loading the full record
+
+  // Fetch full complaint (with imageUrl) on mount
+  useEffect(() => {
+    let cancelled = false;
+    api.get(`/complaints/${initial._id}`)
+      .then(r => { if (!cancelled) { setFull(r.data); setImgLoad(false); } })
+      .catch(() => { if (!cancelled) setImgLoad(false); });
+    return () => { cancelled = true; };
+  }, [initial._id]); // eslint-disable-line
+
+  const c = full; // use full data for display
 
   const save = async () => {
     setSaving(true);
@@ -926,25 +963,23 @@ function ComplaintDetail({ complaint: c, onUpdate, onClose, onPrint }) {
           {c.resolvedAt && <p><strong>Resolved:</strong> {new Date(c.resolvedAt).toLocaleString('en-GB')}</p>}
         </div>
 
-        {(c.imageUrl || c.videoUrl) && (
-          <div className="detail-section">
-            <h4>Attached Media</h4>
-            {c.imageUrl && (
-              <div style={{ marginBottom:10 }}>
-                <p style={{ marginBottom:6 }}><strong>📷 Image:</strong></p>
-                <img src={c.imageUrl} alt="Attachment"
-                  style={{ maxWidth:'100%', borderRadius:8, border:'1px solid var(--border)' }} />
-              </div>
-            )}
-            {c.videoUrl && (
-              <div>
-                <p style={{ marginBottom:6 }}><strong>🎥 Video:</strong></p>
-                <video src={c.videoUrl} controls
-                  style={{ maxWidth:'100%', borderRadius:8, border:'1px solid var(--border)' }} />
-              </div>
-            )}
-          </div>
-        )}
+        {/* Image section — shows spinner while full record loads */}
+        <div className="detail-section">
+          <h4>📷 Attached Image</h4>
+          {imgLoad ? (
+            <div style={{ fontSize:13, color:'var(--text3)', padding:'8px 0' }}>
+              ⏳ Loading image...
+            </div>
+          ) : c.imageUrl ? (
+            <img src={c.imageUrl} alt="Complaint attachment"
+              style={{ maxWidth:'100%', borderRadius:8,
+                       border:'1.5px solid var(--border)', marginTop:6 }} />
+          ) : (
+            <div style={{ fontSize:13, color:'var(--text3)', padding:'4px 0' }}>
+              No image attached to this complaint.
+            </div>
+          )}
+        </div>
 
         <div className="detail-section">
           <h4>Admin Actions</h4>
