@@ -57,30 +57,42 @@ export default function App() {
   const [superAdmin, setSuperAdmin] = useState(false);
   const [loggedUser, setLoggedUser] = useState('');
   const [loggedPin,  setLoggedPin]  = useState('');
-  const [menuData, setMenuData] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ffcmm_menu');
-      if (saved) return JSON.parse(saved);
-    } catch(e) {}
-    return DEFAULT_MENU;
-  });
+  const [menuData,    setMenuData]    = useState(DEFAULT_MENU);
+  const [contactData, setContactData] = useState(DEFAULT_CONTACTS);
+  const [menuLoading, setMenuLoading] = useState(true);
 
-  const [contactData, setContactData] = useState(() => {
-    try {
-      const saved = localStorage.getItem('ffcmm_contacts');
-      if (saved) return JSON.parse(saved);
-    } catch(e) {}
-    return DEFAULT_CONTACTS;
-  });
+  // Load menu from API on startup — works on all devices
+  useEffect(() => {
+    api.get('/menu')
+      .then(r => {
+        if (r.data?.menuData)    setMenuData(r.data.menuData);
+        if (r.data?.contactData) setContactData(r.data.contactData);
+      })
+      .catch(() => {/* silently fall back to defaults */})
+      .finally(() => setMenuLoading(false));
+  }, []);
 
-  const saveMenu = (newMenu) => {
+  // saveMenu: optimistically update local state, then persist to DB
+  const saveMenu = async (newMenu, adminPin) => {
     setMenuData(newMenu);
-    try { localStorage.setItem('ffcmm_menu', JSON.stringify(newMenu)); } catch(e) {}
+    // persist each changed canteen to the backend
+    try {
+      const canteens = Object.keys(newMenu);
+      await Promise.all(canteens.map(canteen =>
+        api.put('/menu', { canteen, days: newMenu[canteen] }, { headers: { adminpin: adminPin } })
+      ));
+    } catch(e) { console.error('Menu save error:', e.message); }
   };
 
-  const saveContacts = (newContacts) => {
+  // saveContacts: same pattern
+  const saveContacts = async (newContacts, adminPin) => {
     setContactData(newContacts);
-    try { localStorage.setItem('ffcmm_contacts', JSON.stringify(newContacts)); } catch(e) {}
+    try {
+      const canteens = Object.keys(newContacts);
+      await Promise.all(canteens.map(canteen =>
+        api.put('/menu', { canteen, contacts: newContacts[canteen] }, { headers: { adminpin: adminPin } })
+      ));
+    } catch(e) { console.error('Contacts save error:', e.message); }
   };
 
   return (
@@ -89,7 +101,7 @@ export default function App() {
         <ComplaintForm setPage={setPage} />
       )}
       {page === 'home' && (
-        <HomePage setPage={setPage} menuData={menuData} contactData={contactData} />
+        <HomePage setPage={setPage} menuData={menuData} contactData={contactData} menuLoading={menuLoading} />
       )}
       {page === 'admin' && !auth && (
         <AdminLogin
@@ -121,7 +133,7 @@ export default function App() {
 // ══════════════════════════════════════════════════════
 // HOME PAGE — with tabs
 // ══════════════════════════════════════════════════════
-function HomePage({ setPage, menuData, contactData }) {
+function HomePage({ setPage, menuData, contactData, menuLoading }) {
   const [tab, setTab] = useState('complaint');
 
   return (
@@ -156,7 +168,7 @@ function HomePage({ setPage, menuData, contactData }) {
       </div>
 
       {tab === 'complaint' && <ComplaintTab setPage={setPage} />}
-      {tab === 'menu'      && <MenuTab menuData={menuData} contactData={contactData} />}
+      {tab === 'menu'      && <MenuTab menuData={menuData} contactData={contactData} menuLoading={menuLoading} />}
 
       <footer><p>FFC MM — Canteen Complaint Management System © 2026</p></footer>
     </div>
@@ -267,12 +279,21 @@ const CANTEEN_THEMES = {
 };
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
-function MenuTab({ menuData, contactData }) {
+function MenuTab({ menuData, contactData, menuLoading }) {
   const [selectedCanteen, setSelectedCanteen] = useState('Plant Canteen');
   const [activeDay,       setActiveDay]       = useState(0);
   const theme    = CANTEEN_THEMES[selectedCanteen];
   const dayMenu  = (menuData[selectedCanteen] || DEFAULT_MENU['Plant Canteen'])[activeDay];
   const contacts = (contactData && contactData[selectedCanteen]) || DEFAULT_CONTACTS[selectedCanteen];
+
+  if (menuLoading) {
+    return (
+      <div style={{textAlign:'center',padding:'60px 24px',color:'var(--text3)'}}>
+        <div style={{width:32,height:32,border:'3px solid var(--border2)',borderTopColor:'var(--gold)',borderRadius:'50%',animation:'spin .8s linear infinite',margin:'0 auto 16px'}}></div>
+        <p style={{fontSize:14,fontWeight:700}}>Loading menu...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="menu-tab">
@@ -717,7 +738,7 @@ function AdminDashboard({ setPage, setAuth, superAdmin, loggedUser, adminPin, me
         {fetchErr && <div className="error-message" style={{marginBottom:20}}>{fetchErr}<button onClick={fetchAll} style={{marginLeft:12,padding:'4px 12px',background:'var(--red)',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontSize:12}}>Retry</button></div>}
 
         {/* MENU EDITOR */}
-        {showMenuEdit && <MenuEditor menuData={menuData} saveMenu={saveMenu} contactData={contactData} saveContacts={saveContacts} />}
+        {showMenuEdit && <MenuEditor menuData={menuData} saveMenu={saveMenu} contactData={contactData} saveContacts={saveContacts} adminPin={adminPin} />}
 
         {/* USER MANAGEMENT */}
         {superAdmin && showUsers && (
@@ -843,7 +864,7 @@ function AdminDashboard({ setPage, setAuth, superAdmin, loggedUser, adminPin, me
 }
 
 // ── Menu Editor ──────────────────────────────────────────
-function MenuEditor({ menuData, saveMenu, contactData, saveContacts }) {
+function MenuEditor({ menuData, saveMenu, contactData, saveContacts, adminPin }) {
   const [editCanteen, setEditCanteen] = useState('Plant Canteen');
   const [editDay,     setEditDay]     = useState(0);
   const [editMeal,    setEditMeal]    = useState(0);
@@ -870,32 +891,51 @@ function MenuEditor({ menuData, saveMenu, contactData, saveContacts }) {
     setDraftContacts(contacts.map(([name, num]) => `${name}|${num}`).join('\n'));
   }, [editCanteen, contactData]);
 
-  const showSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 2200); };
+  const [saving,    setSaving]    = useState(false);
+  const [saveError, setSaveError] = useState('');
 
-  const saveMeal = () => {
+  const showSaved = () => { setSaved(true); setSaveError(''); setTimeout(() => setSaved(false), 2200); };
+
+  const saveMeal = async () => {
+    setSaving(true); setSaveError('');
     const newMenu = JSON.parse(JSON.stringify(menuData));
     newMenu[editCanteen][editDay].meals[editMeal].items =
       draftItems.split('\n').map(s => s.trim()).filter(Boolean);
     newMenu[editCanteen][editDay].meals[editMeal].time = draftTime.trim();
-    saveMenu(newMenu);
-    showSaved();
+    try {
+      await saveMenu(newMenu, adminPin);
+      showSaved();
+    } catch(e) {
+      setSaveError('❌ Save failed: ' + (e.response?.data?.error || e.message));
+    } finally { setSaving(false); }
   };
 
-  const saveContactsNow = () => {
+  const saveContactsNow = async () => {
+    setSaving(true); setSaveError('');
     const parsed = draftContacts.split('\n').map(line => {
       const [name, ...rest] = line.split('|');
       return [name?.trim() || '', rest.join('|').trim() || ''];
     }).filter(([name]) => name);
     const newContacts = { ...contactData, [editCanteen]: parsed };
-    saveContacts(newContacts);
-    showSaved();
+    try {
+      await saveContacts(newContacts, adminPin);
+      showSaved();
+    } catch(e) {
+      setSaveError('❌ Save failed: ' + (e.response?.data?.error || e.message));
+    } finally { setSaving(false); }
   };
 
-  const resetToDefault = () => {
+  const resetToDefault = async () => {
     if (!window.confirm('Reset ALL menus and contacts to default? This cannot be undone.')) return;
-    saveMenu(DEFAULT_MENU);
-    saveContacts(DEFAULT_CONTACTS);
-    showSaved();
+    setSaving(true); setSaveError('');
+    try {
+      await api.put('/menu/reset', {}, { headers: { adminpin: adminPin } });
+      await saveMenu(JSON.parse(JSON.stringify(DEFAULT_MENU)), adminPin);
+      await saveContacts(JSON.parse(JSON.stringify(DEFAULT_CONTACTS)), adminPin);
+      showSaved();
+    } catch(e) {
+      setSaveError('❌ Reset failed: ' + (e.response?.data?.error || e.message));
+    } finally { setSaving(false); }
   };
 
   return (
@@ -907,7 +947,8 @@ function MenuEditor({ menuData, saveMenu, contactData, saveContacts }) {
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           {saved && <span style={{fontSize:13,color:'var(--success)',fontWeight:700,animation:'fadeIn .3s ease both'}}>✅ Saved!</span>}
-          <button onClick={resetToDefault} style={{fontSize:12,padding:'6px 14px',background:'var(--red-light)',color:'var(--red)',border:'1.5px solid rgba(201,64,64,.25)',borderRadius:8,cursor:'pointer',fontWeight:700}}>↺ Reset to Default</button>
+          {saveError && <span style={{fontSize:12,color:'var(--danger)',fontWeight:700}}>{saveError}</span>}
+          <button onClick={resetToDefault} disabled={saving} style={{fontSize:12,padding:'6px 14px',background:'var(--red-light)',color:'var(--red)',border:'1.5px solid rgba(201,64,64,.25)',borderRadius:8,cursor:'pointer',fontWeight:700,opacity:saving?.5:1}}>↺ Reset to Default</button>
         </div>
       </div>
 
@@ -986,9 +1027,9 @@ function MenuEditor({ menuData, saveMenu, contactData, saveContacts }) {
                 />
                 <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>One item per line. Click Save when done.</div>
               </div>
-              <button onClick={saveMeal}
-                style={{padding:'10px 28px',background:'linear-gradient(135deg,var(--red2),var(--red3))',color:'#fff',border:'none',borderRadius:9,cursor:'pointer',fontWeight:700,fontSize:13,fontFamily:'var(--ff-body)',boxShadow:'0 3px 12px var(--red-glow)',transition:'all .2s'}}>
-                💾 Save Changes
+              <button onClick={saveMeal} disabled={saving}
+                style={{padding:'10px 28px',background:'linear-gradient(135deg,var(--red2),var(--red3))',color:'#fff',border:'none',borderRadius:9,cursor:saving?'not-allowed':'pointer',fontWeight:700,fontSize:13,fontFamily:'var(--ff-body)',boxShadow:'0 3px 12px var(--red-glow)',transition:'all .2s',opacity:saving?.6:1}}>
+                {saving ? '⏳ Saving...' : '💾 Save Changes'}
               </button>
             </div>
           )}
@@ -1013,9 +1054,9 @@ function MenuEditor({ menuData, saveMenu, contactData, saveContacts }) {
           <div style={{fontSize:11,color:'var(--text3)',marginBottom:12}}>
             Each line: <strong>Name|PhoneNumber</strong> (use | to separate). Click Save when done.
           </div>
-          <button onClick={saveContactsNow}
-            style={{padding:'10px 28px',background:'linear-gradient(135deg,var(--gold2),var(--gold3))',color:'#fff',border:'none',borderRadius:9,cursor:'pointer',fontWeight:700,fontSize:13,fontFamily:'var(--ff-body)',boxShadow:'0 3px 12px var(--gold-glow)',transition:'all .2s'}}>
-            💾 Save Contacts
+          <button onClick={saveContactsNow} disabled={saving}
+            style={{padding:'10px 28px',background:'linear-gradient(135deg,var(--gold2),var(--gold3))',color:'#fff',border:'none',borderRadius:9,cursor:saving?'not-allowed':'pointer',fontWeight:700,fontSize:13,fontFamily:'var(--ff-body)',boxShadow:'0 3px 12px var(--gold-glow)',transition:'all .2s',opacity:saving?.6:1}}>
+            {saving ? '⏳ Saving...' : '💾 Save Contacts'}
           </button>
         </div>
       )}
