@@ -28,13 +28,13 @@ const DEFAULT_MENU = {
     { day:'Sunday',    tag:'Rest & Feast',     meals:[{label:'Breakfast',time:'7:00–9:00 AM',icon:'🍳',items:['Nihari','Naan','Chai']},{label:'Lunch',time:'12:30–2:30 PM',icon:'🍛',items:['Mix Pulao','Raita']},{label:'Dinner',time:'7:00–9:00 PM',icon:'🍲',items:['Chicken Handi','Roti','Dal']}]},
   ],
   'Cafeteria Canteen': [
-    { day:'Monday',    tag:'Start of Week',    meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Sandwich','Juice','Tea/Coffee']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Pasta','Salad','Bread']},{label:'Snacks',time:'4:00–5:00 PM',icon:'🍪',items:['Samosa','Pakora','Chai']}]},
-    { day:'Tuesday',   tag:'Mid-Week Treat',   meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Club Sandwich','Milk','Tea']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Fried Rice','Spring Rolls','Soup']},{label:'Snacks',time:'4:00–5:00 PM',icon:'🍪',items:['Cake Slice','Biscuits','Coffee']}]},
-    { day:'Wednesday', tag:'Hump Day Special', meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Egg Toast','Juice','Tea']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Burger','Fries','Cold Drink']},{label:'Snacks',time:'4:00–5:00 PM',icon:'🍪',items:['Patties','Tea','Fruit']}]},
-    { day:'Thursday',  tag:'Almost Friday',    meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Paratha Roll','Lassi']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Chicken Sandwich','Salad','Juice']},{label:'Snacks',time:'4:00–5:00 PM',icon:'🍪',items:['Donut','Coffee','Fruit']}]},
-    { day:'Friday',    tag:'TGIF Special',     meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['French Toast','Juice','Tea']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Pizza Slice','Salad','Cold Drink']},{label:'Snacks',time:'4:00–5:00 PM',icon:'🍪',items:['Cake','Tea','Biscuits']}]},
-    { day:'Saturday',  tag:'Weekend Vibes',    meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Waffle','Juice','Coffee']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Grilled Chicken','Fries','Salad']},{label:'Snacks',time:'4:00–5:00 PM',icon:'🍪',items:['Brownie','Tea']}]},
-    { day:'Sunday',    tag:'Rest & Relax',     meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Pancakes','Juice','Tea']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['BBQ Platter','Garlic Bread','Soup']},{label:'Snacks',time:'4:00–5:00 PM',icon:'🍪',items:['Muffin','Coffee']}]},
+    { day:'Monday',    tag:'Start of Week',    meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Sandwich','Juice','Tea/Coffee']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Pasta','Salad','Bread']},{label:'Dinner',time:'4:00–5:00 PM',icon:'🍪',items:['Samosa','Pakora','Chai']}]},
+    { day:'Tuesday',   tag:'Mid-Week Treat',   meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Club Sandwich','Milk','Tea']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Fried Rice','Spring Rolls','Soup']},{label:'Dinner',time:'4:00–5:00 PM',icon:'🍪',items:['Cake Slice','Biscuits','Coffee']}]},
+    { day:'Wednesday', tag:'Hump Day Special', meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Egg Toast','Juice','Tea']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Burger','Fries','Cold Drink']},{label:'Dinner',time:'4:00–5:00 PM',icon:'🍪',items:['Patties','Tea','Fruit']}]},
+    { day:'Thursday',  tag:'Almost Friday',    meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Paratha Roll','Lassi']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Chicken Sandwich','Salad','Juice']},{label:'Dinner',time:'4:00–5:00 PM',icon:'🍪',items:['Donut','Coffee','Fruit']}]},
+    { day:'Friday',    tag:'TGIF Special',     meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['French Toast','Juice','Tea']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Pizza Slice','Salad','Cold Drink']},{label:'Dinner',time:'4:00–5:00 PM',icon:'🍪',items:['Cake','Tea','Biscuits']}]},
+    { day:'Saturday',  tag:'Weekend Vibes',    meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Waffle','Juice','Coffee']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['Grilled Chicken','Fries','Salad']},{label:'Dinner',time:'4:00–5:00 PM',icon:'🍪',items:['Brownie','Tea']}]},
+    { day:'Sunday',    tag:'Rest & Relax',     meals:[{label:'Breakfast',time:'8:00–10:00 AM',icon:'☕',items:['Pancakes','Juice','Tea']},{label:'Lunch',time:'1:00–3:00 PM',icon:'🥗',items:['BBQ Platter','Garlic Bread','Soup']},{label:'Dinner',time:'4:00–5:00 PM',icon:'🍪',items:['Muffin','Coffee']}]},
   ],
 };
 
@@ -47,7 +47,7 @@ const MEAL_COLORS = {
   Breakfast: { bg:'#fff8e8', border:'#f0c040', icon:'#e8a000', label:'#b07800', dot:'#f0c040' },
   Lunch:     { bg:'#eaf6ff', border:'#60b8f0', icon:'#1a7ab8', label:'#0a5a90', dot:'#60b8f0' },
   Dinner:    { bg:'#fff0f0', border:'#f08080', icon:'#c03030', label:'#901818', dot:'#f08080' },
-  Snacks:    { bg:'#f0fff4', border:'#60d090', icon:'#1a9050', label:'#0a6830', dot:'#60d090' },
+  Dinner:    { bg:'#f0fff4', border:'#60d090', icon:'#1a9050', label:'#0a6830', dot:'#60d090' },
 };
 const DEFAULT_COLOR = { bg:'#f8f8f8', border:'#ccc', icon:'#666', label:'#444', dot:'#999' };
 
