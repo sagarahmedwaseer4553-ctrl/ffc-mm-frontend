@@ -38,14 +38,11 @@ const DEFAULT_MENU = {
   ],
 };
 
-// ── Default Contact Strip Data ───────────────────────────
-const DEFAULT_CONTACTS = [
-  { name:'Ahmad Naveed',  number:'03461113920' },
-  { name:'Ahmad Maqsood', number:'03044467651' },
-  { name:'Iqbal Naeem',   number:'Committee'   },
-];
-
-// ── Meal card colors by meal type ────────────────────────
+const DEFAULT_CONTACTS = {
+  'Plant Canteen':           [['Ahmad Naveed','03461113920'],['Ahmad Maqsood','03044467651'],['Iqbal Naeem','Committee']],
+  'Staff Hostel-II Canteen': [['Ahmad Naveed','03461113920'],['Ahmad Maqsood','03044467651'],['Iqbal Naeem','Committee']],
+  'Cafeteria Canteen':       [['Ahmad Naveed','03461113920'],['Ahmad Maqsood','03044467651'],['Iqbal Naeem','Committee']],
+};
 const MEAL_COLORS = {
   Breakfast: { bg:'#fff8e8', border:'#f0c040', icon:'#e8a000', label:'#b07800', dot:'#f0c040' },
   Lunch:     { bg:'#eaf6ff', border:'#60b8f0', icon:'#1a7ab8', label:'#0a5a90', dot:'#60b8f0' },
@@ -60,28 +57,39 @@ export default function App() {
   const [superAdmin, setSuperAdmin] = useState(false);
   const [loggedUser, setLoggedUser] = useState('');
   const [loggedPin,  setLoggedPin]  = useState('');
-  const [menuData,   setMenuData]   = useState(DEFAULT_MENU);
-
-  // Load saved menu + contacts from localStorage on startup
-  useEffect(() => {
+  const [menuData, setMenuData] = useState(() => {
     try {
       const saved = localStorage.getItem('ffcmm_menu');
-      if (saved) setMenuData(JSON.parse(saved));
+      if (saved) return JSON.parse(saved);
     } catch(e) {}
-  }, []);
+    return DEFAULT_MENU;
+  });
+
+  const [contactData, setContactData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ffcmm_contacts');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return DEFAULT_CONTACTS;
+  });
 
   const saveMenu = (newMenu) => {
     setMenuData(newMenu);
     try { localStorage.setItem('ffcmm_menu', JSON.stringify(newMenu)); } catch(e) {}
   };
 
+  const saveContacts = (newContacts) => {
+    setContactData(newContacts);
+    try { localStorage.setItem('ffcmm_contacts', JSON.stringify(newContacts)); } catch(e) {}
+  };
+
   return (
     <div className="app">
-      {page === 'home' && (
-        <HomePage setPage={setPage} menuData={menuData} />
-      )}
       {page === 'complaint' && (
         <ComplaintForm setPage={setPage} />
+      )}
+      {page === 'home' && (
+        <HomePage setPage={setPage} menuData={menuData} contactData={contactData} />
       )}
       {page === 'admin' && !auth && (
         <AdminLogin
@@ -102,6 +110,8 @@ export default function App() {
           adminPin={loggedPin}
           menuData={menuData}
           saveMenu={saveMenu}
+          contactData={contactData}
+          saveContacts={saveContacts}
         />
       )}
     </div>
@@ -111,7 +121,7 @@ export default function App() {
 // ══════════════════════════════════════════════════════
 // HOME PAGE — with tabs
 // ══════════════════════════════════════════════════════
-function HomePage({ setPage, menuData }) {
+function HomePage({ setPage, menuData, contactData }) {
   const [tab, setTab] = useState('complaint');
 
   return (
@@ -146,8 +156,7 @@ function HomePage({ setPage, menuData }) {
       </div>
 
       {tab === 'complaint' && <ComplaintTab setPage={setPage} />}
-
-      {tab === 'menu'      && <MenuTab menuData={menuData} />}
+      {tab === 'menu'      && <MenuTab menuData={menuData} contactData={contactData} />}
 
       <footer><p>FFC MM — Canteen Complaint Management System © 2026</p></footer>
     </div>
@@ -258,12 +267,12 @@ const CANTEEN_THEMES = {
 };
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
-function MenuTab({ menuData }) {
-  const contacts = menuData.__contacts || DEFAULT_CONTACTS;
+function MenuTab({ menuData, contactData }) {
   const [selectedCanteen, setSelectedCanteen] = useState('Plant Canteen');
   const [activeDay,       setActiveDay]       = useState(0);
-  const theme   = CANTEEN_THEMES[selectedCanteen];
-  const dayMenu = (menuData[selectedCanteen] || DEFAULT_MENU['Plant Canteen'])[activeDay];
+  const theme    = CANTEEN_THEMES[selectedCanteen];
+  const dayMenu  = (menuData[selectedCanteen] || DEFAULT_MENU['Plant Canteen'])[activeDay];
+  const contacts = (contactData && contactData[selectedCanteen]) || DEFAULT_CONTACTS[selectedCanteen];
 
   return (
     <div className="menu-tab">
@@ -346,10 +355,10 @@ function MenuTab({ menuData }) {
       <div className="menu-footer" style={{ background: theme.light, borderColor: theme.accent + '30' }}>
         <p style={{ color:'#666', fontSize:13 }}>Menu prepared by the Canteen Committee. For changes or suggestions, contact:</p>
         <div className="menu-contacts">
-          {contacts.map((c, i) => (
-            <div key={i} className="menu-contact-chip" style={{ borderColor: theme.accent + '40', color: theme.accent }}>
-              <span style={{ color:'#888', fontSize:11, display:'block' }}>{c.name}</span>
-              {c.number}
+          {contacts.map(([name,num], idx)=>(
+            <div key={idx} className="menu-contact-chip" style={{ borderColor: theme.accent + '40', color: theme.accent }}>
+              <span style={{ color:'#888', fontSize:11, display:'block' }}>{name}</span>
+              {num}
             </div>
           ))}
         </div>
@@ -566,7 +575,7 @@ function AdminLogin({ setPage, onAuth }) {
 // ══════════════════════════════════════════════════════
 // ADMIN DASHBOARD
 // ══════════════════════════════════════════════════════
-function AdminDashboard({ setPage, setAuth, superAdmin, loggedUser, adminPin, menuData, saveMenu }) {
+function AdminDashboard({ setPage, setAuth, superAdmin, loggedUser, adminPin, menuData, saveMenu, contactData, saveContacts }) {
   const [complaints,    setComplaints]    = useState([]);
   const [stats,         setStats]         = useState(null);
   const [selected,      setSelected]      = useState(null);
@@ -708,7 +717,7 @@ function AdminDashboard({ setPage, setAuth, superAdmin, loggedUser, adminPin, me
         {fetchErr && <div className="error-message" style={{marginBottom:20}}>{fetchErr}<button onClick={fetchAll} style={{marginLeft:12,padding:'4px 12px',background:'var(--red)',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontSize:12}}>Retry</button></div>}
 
         {/* MENU EDITOR */}
-        {showMenuEdit && <MenuEditor menuData={menuData} saveMenu={saveMenu} />}
+        {showMenuEdit && <MenuEditor menuData={menuData} saveMenu={saveMenu} contactData={contactData} saveContacts={saveContacts} />}
 
         {/* USER MANAGEMENT */}
         {superAdmin && showUsers && (
@@ -834,60 +843,59 @@ function AdminDashboard({ setPage, setAuth, superAdmin, loggedUser, adminPin, me
 }
 
 // ── Menu Editor ──────────────────────────────────────────
-function MenuEditor({ menuData, saveMenu }) {
+function MenuEditor({ menuData, saveMenu, contactData, saveContacts }) {
   const [editCanteen, setEditCanteen] = useState('Plant Canteen');
   const [editDay,     setEditDay]     = useState(0);
   const [editMeal,    setEditMeal]    = useState(0);
   const [saved,       setSaved]       = useState(false);
-  const [editSection, setEditSection] = useState('menu'); // 'menu' | 'contacts'
+  const [activeTab,   setActiveTab]   = useState('meals'); // 'meals' | 'contacts'
 
-  const contacts = menuData.__contacts || DEFAULT_CONTACTS;
-
+  // Local draft for the textarea — avoids calling saveMenu on every keystroke
   const dayData  = menuData[editCanteen]?.[editDay];
   const mealData = dayData?.meals?.[editMeal];
 
-  const flash = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  const [draftItems, setDraftItems] = useState('');
+  const [draftTime,  setDraftTime]  = useState('');
 
-  const updateItems = (value) => {
+  // Sync draft when selection changes
+  useEffect(() => {
+    setDraftItems(mealData?.items?.join('\n') || '');
+    setDraftTime(mealData?.time || '');
+  }, [editCanteen, editDay, editMeal, menuData]);
+
+  // Contact draft
+  const [draftContacts, setDraftContacts] = useState('');
+  useEffect(() => {
+    const contacts = (contactData && contactData[editCanteen]) || DEFAULT_CONTACTS[editCanteen];
+    setDraftContacts(contacts.map(([name, num]) => `${name}|${num}`).join('\n'));
+  }, [editCanteen, contactData]);
+
+  const showSaved = () => { setSaved(true); setTimeout(() => setSaved(false), 2200); };
+
+  const saveMeal = () => {
     const newMenu = JSON.parse(JSON.stringify(menuData));
-    newMenu[editCanteen][editDay].meals[editMeal].items = value.split('\n').map(s=>s.trim()).filter(Boolean);
+    newMenu[editCanteen][editDay].meals[editMeal].items =
+      draftItems.split('\n').map(s => s.trim()).filter(Boolean);
+    newMenu[editCanteen][editDay].meals[editMeal].time = draftTime.trim();
     saveMenu(newMenu);
-    flash();
+    showSaved();
   };
 
-  const updateTime = (value) => {
-    const newMenu = JSON.parse(JSON.stringify(menuData));
-    newMenu[editCanteen][editDay].meals[editMeal].time = value;
-    saveMenu(newMenu);
-  };
-
-  const updateContact = (index, field, value) => {
-    const newMenu = JSON.parse(JSON.stringify(menuData));
-    const updated = [...contacts];
-    updated[index] = { ...updated[index], [field]: value };
-    newMenu.__contacts = updated;
-    saveMenu(newMenu);
-  };
-
-  const addContact = () => {
-    const newMenu = JSON.parse(JSON.stringify(menuData));
-    newMenu.__contacts = [...contacts, { name: '', number: '' }];
-    saveMenu(newMenu);
-  };
-
-  const removeContact = (index) => {
-    const newMenu = JSON.parse(JSON.stringify(menuData));
-    newMenu.__contacts = contacts.filter((_, i) => i !== index);
-    saveMenu(newMenu);
-    flash();
+  const saveContactsNow = () => {
+    const parsed = draftContacts.split('\n').map(line => {
+      const [name, ...rest] = line.split('|');
+      return [name?.trim() || '', rest.join('|').trim() || ''];
+    }).filter(([name]) => name);
+    const newContacts = { ...contactData, [editCanteen]: parsed };
+    saveContacts(newContacts);
+    showSaved();
   };
 
   const resetToDefault = () => {
     if (!window.confirm('Reset ALL menus and contacts to default? This cannot be undone.')) return;
-    const fresh = JSON.parse(JSON.stringify(DEFAULT_MENU));
-    fresh.__contacts = JSON.parse(JSON.stringify(DEFAULT_CONTACTS));
-    saveMenu(fresh);
-    flash();
+    saveMenu(DEFAULT_MENU);
+    saveContacts(DEFAULT_CONTACTS);
+    showSaved();
   };
 
   return (
@@ -895,132 +903,120 @@ function MenuEditor({ menuData, saveMenu }) {
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12,marginBottom:16}}>
         <div>
           <h3 style={{fontFamily:'var(--ff-head)',fontSize:17,fontWeight:700,color:'var(--text)',marginBottom:4}}>🍽️ Menu Editor</h3>
-          <p style={{fontSize:13,color:'var(--text2)'}}>Edit menu items or contact strip shown to all users</p>
+          <p style={{fontSize:13,color:'var(--text2)'}}>Edit what's served each day — press <strong>Save</strong> to keep changes</p>
         </div>
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
-          {saved && <span style={{fontSize:13,color:'var(--success)',fontWeight:700}}>✅ Saved!</span>}
+          {saved && <span style={{fontSize:13,color:'var(--success)',fontWeight:700,animation:'fadeIn .3s ease both'}}>✅ Saved!</span>}
           <button onClick={resetToDefault} style={{fontSize:12,padding:'6px 14px',background:'var(--red-light)',color:'var(--red)',border:'1.5px solid rgba(201,64,64,.25)',borderRadius:8,cursor:'pointer',fontWeight:700}}>↺ Reset to Default</button>
         </div>
       </div>
 
-      {/* Section toggle */}
-      <div style={{display:'flex',gap:6,marginBottom:18,background:'var(--bg2)',padding:4,borderRadius:10,width:'fit-content'}}>
-        {[['menu','🍽️ Menu Items'],['contacts','📞 Contacts']].map(([key,label])=>(
-          <button key={key} onClick={()=>setEditSection(key)}
-            style={{padding:'7px 18px',borderRadius:8,border:'none',cursor:'pointer',fontSize:13,fontWeight:700,fontFamily:'var(--ff-body)',transition:'all .18s',
-              background: editSection===key ? 'var(--bg3)' : 'transparent',
-              color: editSection===key ? 'var(--red2)' : 'var(--text3)',
-              boxShadow: editSection===key ? '0 1px 6px rgba(0,0,0,.08)' : 'none'}}>
-            {label}
+      {/* Canteen selector */}
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
+        {CANTEENS.map(c => (
+          <button key={c} onClick={()=>{setEditCanteen(c);setEditDay(0);setEditMeal(0);}}
+            style={{padding:'7px 16px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontWeight:700,fontSize:12,fontFamily:'var(--ff-body)',transition:'all .18s',
+              background: editCanteen===c ? '#333' : 'var(--bg4)',
+              color: editCanteen===c ? '#fff' : 'var(--text2)',
+              borderColor: editCanteen===c ? '#333' : 'var(--border2)'}}>
+            {c}
           </button>
         ))}
       </div>
 
-      {editSection === 'menu' && (<>
-        {/* Canteen selector */}
-        <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:14}}>
-          {CANTEENS.map(c => (
-            <button key={c} onClick={()=>{setEditCanteen(c);setEditDay(0);setEditMeal(0);}}
-              style={{padding:'7px 16px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontWeight:700,fontSize:12,fontFamily:'var(--ff-body)',
-                background: editCanteen===c ? '#333' : 'var(--bg4)',
-                color: editCanteen===c ? '#fff' : 'var(--text2)',
-                borderColor: editCanteen===c ? '#333' : 'var(--border2)'}}>
-              {c}
-            </button>
-          ))}
-        </div>
+      {/* Sub-tab: Meals vs Contacts */}
+      <div style={{display:'flex',gap:0,borderBottom:'2px solid var(--border)',marginBottom:16}}>
+        {['meals','contacts'].map(t => (
+          <button key={t} onClick={()=>setActiveTab(t)}
+            style={{padding:'8px 20px',border:'none',background:'none',cursor:'pointer',fontWeight:700,fontSize:13,fontFamily:'var(--ff-body)',
+              color: activeTab===t ? 'var(--red2)' : 'var(--text3)',
+              borderBottom: activeTab===t ? '2.5px solid var(--red)' : '2.5px solid transparent',
+              marginBottom:'-2px',transition:'all .18s'}}>
+            {t === 'meals' ? '🍛 Meal Items' : '📞 Contacts'}
+          </button>
+        ))}
+      </div>
 
-        {/* Day selector */}
-        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
-          {DAYS.map((d,i) => (
-            <button key={d} onClick={()=>{setEditDay(i);setEditMeal(0);}}
-              style={{padding:'5px 12px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontSize:12,fontFamily:'var(--ff-body)',
-                background: editDay===i ? 'var(--gold)' : 'var(--bg4)',
-                color: editDay===i ? '#fff' : 'var(--text2)',
-                borderColor: editDay===i ? 'var(--gold)' : 'var(--border)'}}>
-              {d.slice(0,3)}
-            </button>
-          ))}
-        </div>
-
-        {/* Meal selector */}
-        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:18}}>
-          {(dayData?.meals||[]).map((m,i) => (
-            <button key={i} onClick={()=>setEditMeal(i)}
-              style={{padding:'5px 14px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontSize:12,fontFamily:'var(--ff-body)',
-                background: editMeal===i ? 'var(--red)' : 'var(--bg4)',
-                color: editMeal===i ? '#fff' : 'var(--text2)',
-                borderColor: editMeal===i ? 'var(--red)' : 'var(--border)'}}>
-              {m.icon} {m.label}
-            </button>
-          ))}
-        </div>
-
-        {mealData && (
-          <div style={{background:'var(--bg4)',border:'1.5px solid var(--border)',borderRadius:12,padding:'16px 18px'}}>
-            <div style={{fontSize:11,fontWeight:700,color:'var(--red2)',letterSpacing:'.6px',textTransform:'uppercase',marginBottom:10}}>
-              Editing: {editCanteen} → {dayData.day} → {mealData.icon} {mealData.label}
-            </div>
-            <div style={{marginBottom:12}}>
-              <label style={{fontSize:11,fontWeight:700,color:'var(--text2)',display:'block',marginBottom:5}}>SERVING TIME</label>
-              <input type="text" value={mealData.time} onChange={e=>updateTime(e.target.value)}
-                style={{width:'100%',padding:'9px 13px',borderRadius:9,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)'}} />
-            </div>
-            <div>
-              <label style={{fontSize:11,fontWeight:700,color:'var(--text2)',display:'block',marginBottom:5}}>MENU ITEMS (one per line)</label>
-              <textarea
-                value={mealData.items.join('\n')}
-                onChange={e=>updateItems(e.target.value)}
-                rows={Math.max(4, mealData.items.length + 1)}
-                style={{width:'100%',padding:'10px 13px',borderRadius:9,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)',resize:'vertical',lineHeight:1.7}}
-              />
-              <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>Changes save automatically as you type</div>
-            </div>
-          </div>
-        )}
-      </>)}
-
-      {editSection === 'contacts' && (
-        <div>
-          <p style={{fontSize:13,color:'var(--text2)',marginBottom:14}}>
-            Edit the contact chips shown at the bottom of the Weekly Menu tab.
-          </p>
-          <div style={{display:'flex',flexDirection:'column',gap:10}}>
-            {contacts.map((c, i) => (
-              <div key={i} style={{display:'grid',gridTemplateColumns:'1fr 1fr auto',gap:8,alignItems:'center',background:'var(--bg4)',border:'1.5px solid var(--border)',borderRadius:10,padding:'10px 12px'}}>
-                <div>
-                  <div style={{fontSize:10,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:4}}>Name</div>
-                  <input
-                    type="text"
-                    value={c.name}
-                    onChange={e => updateContact(i, 'name', e.target.value)}
-                    placeholder="Contact name"
-                    style={{width:'100%',padding:'8px 11px',borderRadius:8,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)'}}
-                  />
-                </div>
-                <div>
-                  <div style={{fontSize:10,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:4}}>Number / Role</div>
-                  <input
-                    type="text"
-                    value={c.number}
-                    onChange={e => updateContact(i, 'number', e.target.value)}
-                    placeholder="e.g. 03001234567"
-                    style={{width:'100%',padding:'8px 11px',borderRadius:8,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)'}}
-                  />
-                </div>
-                <button
-                  onClick={() => removeContact(i)}
-                  title="Remove contact"
-                  style={{alignSelf:'flex-end',background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:18,padding:'8px 4px',lineHeight:1,marginBottom:1}}
-                >✕</button>
-              </div>
+      {activeTab === 'meals' && (
+        <>
+          {/* Day selector */}
+          <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:14}}>
+            {DAYS.map((d,i) => (
+              <button key={d} onClick={()=>{setEditDay(i);setEditMeal(0);}}
+                style={{padding:'5px 12px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontSize:12,fontFamily:'var(--ff-body)',transition:'all .18s',
+                  background: editDay===i ? 'var(--gold)' : 'var(--bg4)',
+                  color: editDay===i ? '#fff' : 'var(--text2)',
+                  borderColor: editDay===i ? 'var(--gold)' : 'var(--border)'}}>
+                {d.slice(0,3)}
+              </button>
             ))}
           </div>
-          <button
-            onClick={addContact}
-            style={{marginTop:12,padding:'9px 20px',background:'var(--gold-light)',color:'var(--gold2)',border:'1.5px solid rgba(200,150,10,.3)',borderRadius:9,cursor:'pointer',fontWeight:700,fontSize:13,fontFamily:'var(--ff-body)',transition:'all .18s'}}
-          >+ Add Contact</button>
-          <div style={{fontSize:11,color:'var(--text3)',marginTop:8}}>Changes save automatically as you type</div>
+
+          {/* Meal selector */}
+          <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:18}}>
+            {(dayData?.meals||[]).map((m,i) => (
+              <button key={i} onClick={()=>setEditMeal(i)}
+                style={{padding:'5px 14px',borderRadius:20,border:'1.5px solid',cursor:'pointer',fontSize:12,fontFamily:'var(--ff-body)',transition:'all .18s',
+                  background: editMeal===i ? 'var(--red)' : 'var(--bg4)',
+                  color: editMeal===i ? '#fff' : 'var(--text2)',
+                  borderColor: editMeal===i ? 'var(--red)' : 'var(--border)'}}>
+                {m.icon} {m.label}
+              </button>
+            ))}
+          </div>
+
+          {mealData && (
+            <div style={{background:'var(--bg4)',border:'1.5px solid var(--border)',borderRadius:12,padding:'16px 18px'}}>
+              <div style={{fontSize:11,fontWeight:700,color:'var(--red2)',letterSpacing:'.6px',textTransform:'uppercase',marginBottom:12}}>
+                Editing: {editCanteen} → {dayData.day} → {mealData.icon} {mealData.label}
+              </div>
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--text2)',display:'block',marginBottom:5}}>SERVING TIME</label>
+                <input type="text" value={draftTime}
+                  onChange={e => setDraftTime(e.target.value)}
+                  style={{width:'100%',padding:'9px 13px',borderRadius:9,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)'}} />
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--text2)',display:'block',marginBottom:5}}>MENU ITEMS (one per line)</label>
+                <textarea
+                  value={draftItems}
+                  onChange={e => setDraftItems(e.target.value)}
+                  rows={Math.max(4, draftItems.split('\n').length + 1)}
+                  style={{width:'100%',padding:'10px 13px',borderRadius:9,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-body)',background:'var(--bg3)',color:'var(--text)',resize:'vertical',lineHeight:1.7}}
+                />
+                <div style={{fontSize:11,color:'var(--text3)',marginTop:4}}>One item per line. Click Save when done.</div>
+              </div>
+              <button onClick={saveMeal}
+                style={{padding:'10px 28px',background:'linear-gradient(135deg,var(--red2),var(--red3))',color:'#fff',border:'none',borderRadius:9,cursor:'pointer',fontWeight:700,fontSize:13,fontFamily:'var(--ff-body)',boxShadow:'0 3px 12px var(--red-glow)',transition:'all .2s'}}>
+                💾 Save Changes
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {activeTab === 'contacts' && (
+        <div style={{background:'var(--bg4)',border:'1.5px solid var(--border)',borderRadius:12,padding:'16px 18px'}}>
+          <div style={{fontSize:11,fontWeight:700,color:'var(--red2)',letterSpacing:'.6px',textTransform:'uppercase',marginBottom:10}}>
+            Contacts for: {editCanteen}
+          </div>
+          <label style={{fontSize:11,fontWeight:700,color:'var(--text2)',display:'block',marginBottom:5}}>
+            CONTACTS (one per line — format: <span style={{fontFamily:'var(--ff-mono)'}}>Name|Phone</span>)
+          </label>
+          <textarea
+            value={draftContacts}
+            onChange={e => setDraftContacts(e.target.value)}
+            rows={6}
+            placeholder={'Ahmad Naveed|03461113920\nAhmad Maqsood|03044467651\nIqbal Naeem|Committee'}
+            style={{width:'100%',padding:'10px 13px',borderRadius:9,border:'1.5px solid var(--border)',fontSize:13,fontFamily:'var(--ff-mono)',background:'var(--bg3)',color:'var(--text)',resize:'vertical',lineHeight:1.9,marginBottom:10}}
+          />
+          <div style={{fontSize:11,color:'var(--text3)',marginBottom:12}}>
+            Each line: <strong>Name|PhoneNumber</strong> (use | to separate). Click Save when done.
+          </div>
+          <button onClick={saveContactsNow}
+            style={{padding:'10px 28px',background:'linear-gradient(135deg,var(--gold2),var(--gold3))',color:'#fff',border:'none',borderRadius:9,cursor:'pointer',fontWeight:700,fontSize:13,fontFamily:'var(--ff-body)',boxShadow:'0 3px 12px var(--gold-glow)',transition:'all .2s'}}>
+            💾 Save Contacts
+          </button>
         </div>
       )}
     </div>
